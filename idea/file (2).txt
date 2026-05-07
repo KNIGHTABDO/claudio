@@ -1,0 +1,338 @@
+# Claudio: Your Personal 24/7 AI DJ
+## A Comprehensive, Step-by-Step Guide to Building an Autonomous Music Agent
+
+---
+
+### Part 1: What is Claudio?
+
+**Claudio** is a personalized, 24-hour online AI radio station and DJ. Inspired by Andrej Karpathy's tweet about how "all traditional data can be turned into an interface in the agent era," Claudio takes legacy systems—APIs, smart speakers, local data files—and binds them together using Large Language Models (specifically Claude) as the central brain. 
+
+Unlike standard algorithmic playlists (like Spotify Discover or Apple Music radio), Claudio operates exactly like a real human DJ or curator. 
+* **It knows you deeply:** It ingests your entire musical history (e.g., 14 years of music taste, 3,000+ songs, structured into JSON and Markdown).
+* **It is context-aware:** It checks the daily weather, your work schedule (via Lark/Feishu), and your mood before deciding what to play. For example, it will play light, lyric-free music while you are in deep work, and transition to your favorite vocal tracks in the morning or evening.
+* **It speaks to you:** Using advanced Text-to-Speech (Fish Audio), it introduces songs, provides trivia (e.g., telling you about David Gates recording the song "If" in 1971), and sets the mood.
+* **It is interactive:** You can chat with Claudio at any time. Keep it on your side monitor while you code, and ask it to find a specific BGM or change the vibe. It will respond in real-time and dynamically adjust the queue.
+
+Claudio is not just a music player; it is an AI companion designed to amplify your perception of beautiful things and reduce the attention-draining task of constantly switching contexts.
+
+---
+
+### Part 2: The Architecture Breakdown
+
+Based on the provided blueprint, Claudio's system is divided into **four precise layers**. To build this from scratch, we must follow this architecture exactly.
+
+#### Layer 1: External Context
+This is the data and tooling layer.
+* **USER (Your Data):** 
+  * `taste.md` (Your music preferences)
+  * `routines.md` (Your daily habits)
+  * `playlists.json` (14 years of structured song data: `[{name, artist}]`)
+  * `mood-rules.md` (How weather/schedule affects your music)
+* **BRAIN:** Claude Code (Anthropic's LLM), acting as the orchestrator. It uses a Max subscriptionless API key and is invoked locally via sub-agents (`claude -p --output json`).
+* **MUSIC:** NeteaseCloudMusicApi (An open-source Node.js wrapper). Handles `search`, `song_url`, `lyric`, and `recommend`.
+* **VOICE & I/O:** 
+  * **Fish Audio** (for realistic, human-like TTS)
+  * **Feishu / Lark** (to read your daily calendar/schedule)
+  * **OpenWeather API** (to get local weather)
+  * **UPnP** (to cast audio to physical smart speakers like NAIM or Bose).
+
+#### Layer 2: Local Core (Node.js Backend)
+The engine of the project, consisting of 6 core modules:
+1. `ROUTER.JS`: Intention routing. Decides if a user prompt is a simple music search (sent to NCM) or needs natural language processing (sent to Claude).
+2. `CONTEXT.JS`: Context Assembly. Combines your taste, routines, environment, and history into a system prompt.
+3. `CLAUDE.JS`: Brain Orchestrator. Spawns Claude sub-agents and parses the JSON output which dictates the next action: `{say, play[], reason, segue}`.
+4. `SCHEDULER.JS`: Schedule Manager. Runs daily tasks (07:00 planning, 09:00 morning routine, hourly check-ins).
+5. `TTS.JS`: Voice Pipeline. Sends Claude's spoken text to Fish Audio, caches the result as `.mp3`, and serves it via `/tts/<hash>.mp3`.
+6. `STATE.DB`: Memory State. A local SQLite or JSON database that persists messages, play history, daily plans, and preferences across server restarts.
+
+#### Layer 3: Context Window (Modular Prompts Box)
+Every time Claude is invoked, it is fed a precisely constructed context window containing 6 pieces:
+1. **System Prompt** (`prompts/dj-persona.md`)
+2. **User Docs** (`user/*.md` - your taste and routines)
+3. **Environment Input** (Weather, Calendar, Time)
+4. **Memory Recall** (`state.db` - recently played songs so it doesn't repeat)
+5. **User Input / Tool Results** (What you typed in chat, or API search results)
+6. **Execution Trace** (Logs from the scheduler or webhooks)
+
+*Output Model:* Claude processes this and outputs a structured JSON:
+`{ "say": "...", "play": [...], "reason": "...", "segue": "..." }`
+
+#### Layer 4: Interaction Layer (Frontend & API)
+* **PWA / Localhost:8080:** A Progressive Web App with a retro, dark-mode pixel/grid UI. Features a player, profile/settings, a 3-view `<audio>` player, Service Worker caching (prefetching 10s), and a WebSocket (WS) live chat.
+* **HTTP Contract (REST Endpoints):**
+  * `POST /api/chat`
+  * `GET /api/now`
+  * `GET /api/next`
+  * `GET /api/taste`
+  * `GET /api/plan/today`
+  * `WS /stream` (WebSocket for real-time playhead updates and chat)
+
+---
+
+### Part 3: Step-by-Step Guide to Building Claudio From Scratch
+
+#### Prerequisites
+* **Node.js** (v18+)
+* **NeteaseCloudMusicApi** (Run locally as a separate service or integrated)
+* **API Keys:** Anthropic Claude API, Fish Audio API, OpenWeather API, Feishu/Lark Developer App (for calendar).
+
+#### Phase 1: Project Initialization & Layer 1 Setup
+
+**1. Initialize the project:**
+```bash
+mkdir claudio-ai-dj && cd claudio-ai-dj
+npm init -y
+npm install express ws axios sqlite3 node-upnp node-cron dotenv
+```
+
+**2. Setup the User Data (`/user` folder):**
+Create the external context files mentioned in the architecture.
+
+* `user/playlists.json`: Extract your listening history.
+```json[
+  {"name": "The A-Team", "artist": "Ed Sheeran"},
+  {"name": "If", "artist": "Bread"},
+  {"name": "Sign of the Times", "artist": "Harry Styles"}
+]
+```
+
+* `user/taste.md`: Write your DJ's system instructions regarding your taste.
+```markdown
+# My Music Taste
+I hate pure algorithmic randomness. I have taste.
+- Mornings (09:00 - 12:00): I prefer Chinese acoustic or light indie (e.g., Xu Meijing).
+- Deep Work (13:00 - 17:00): I need focus. Play light music, ambient, or lo-fi without lyrics.
+- Evening (19:00+): Reflective, emotional tracks. Neo-classical or soft rock.
+```
+
+* `user/routines.md` & `user/mood-rules.md`: Add specifics about how you work and how weather dictates the vibe (e.g., "If raining, play melancholic jazz").
+
+#### Phase 2: Building the Local Core (Layer 2)
+
+Create a `/src` directory. Here we map exactly to the diagram.
+
+**1. `src/STATE.DB.js` (Memory & Persistence)**
+Use SQLite to remember what was played so Claudio doesn't loop the same songs.
+```javascript
+const sqlite3 = require('sqlite3').verbose();
+const db = new sqlite3.Database('./state.db');
+
+db.serialize(() => {
+  db.run("CREATE TABLE IF NOT EXISTS plays (id INTEGER PRIMARY KEY, song_name TEXT, played_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
+  db.run("CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY, role TEXT, content TEXT)");
+});
+
+module.exports = db;
+```
+
+**2. `src/TTS.js` (Voice Pipeline)**
+Integrate Fish Audio to generate the DJ voice. Cache the audio locally.
+```javascript
+const axios = require('axios');
+const fs = require('fs');
+const crypto = require('crypto');
+
+async function generateSpeech(text) {
+    const hash = crypto.createHash('md5').update(text).digest('hex');
+    const path = `./public/tts/${hash}.mp3`;
+    
+    if (fs.existsSync(path)) return `/tts/${hash}.mp3`;
+
+    // Pseudocode for Fish Audio API call
+    const response = await axios.post('https://api.fish.audio/v1/tts', {
+        text: text,
+        model: 'your-custom-dj-voice-model-id'
+    }, { headers: { 'Authorization': `Bearer ${process.env.FISH_API_KEY}` }, responseType: 'stream' });
+
+    response.data.pipe(fs.createWriteStream(path));
+    return `/tts/${hash}.mp3`;
+}
+module.exports = { generateSpeech };
+```
+
+**3. `src/CONTEXT.js` (Context Assembly)**
+This script gathers the 6 pieces of information to feed Claude.
+```javascript
+const fs = require('fs');
+const axios = require('axios'); // For weather/calendar APIs
+
+async function buildContext(userInput) {
+    const taste = fs.readFileSync('./user/taste.md', 'utf-8');
+    const persona = fs.readFileSync('./prompts/dj-persona.md', 'utf-8');
+    
+    // Fetch Weather (OpenWeather)
+    const weatherRes = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=Casablanca&appid=${process.env.WEATHER_API}`);
+    const weather = `${weatherRes.data.weather[0].description}, ${weatherRes.data.main.temp}°C`;
+
+    return `
+      [SYSTEM]
+      ${persona}[USER DOCS]
+      ${taste}
+      [ENVIRONMENT]
+      Time: ${new Date().toLocaleString()} | Weather: ${weather}
+      [USER INPUT]
+      ${userInput}
+    `;
+}
+module.exports = { buildContext };
+```
+
+**4. `src/CLAUDE.js` (Brain Orchestrator)**
+This is where the magic happens. We prompt Claude to output strictly structured JSON.
+```javascript
+const { execSync } = require('child_process');
+const { buildContext } = require('./CONTEXT');
+
+async function getDJResponse(userInput) {
+    const prompt = await buildContext(userInput);
+    
+    // According to the diagram, we use the Claude Code CLI sub-agent:
+    // claude -p --output json
+    // Alternatively, use the Anthropic SDK to enforce JSON output.
+    
+    const systemInstruction = `You are Claudio, my personal AI DJ. 
+    Analyze my request and the environment. 
+    Return a JSON object exactly like this: 
+    { "say": "What you say to introduce the songs", "play": ["song1", "song2"], "reason": "Why you picked these", "segue": "transition text" }`;
+
+    // SDK Example:
+    const Anthropic = require('@anthropic-ai/sdk');
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    
+    const msg = await anthropic.messages.create({
+        model: "claude-3-opus-20240229",
+        max_tokens: 1000,
+        system: systemInstruction,
+        messages: [{ role: "user", content: prompt }]
+    });
+
+    return JSON.parse(msg.content[0].text);
+}
+module.exports = { getDJResponse };
+```
+
+**5. `src/ROUTER.js` (Intention Routing)**
+When a chat comes in via WebSocket, the router handles it.
+```javascript
+const { getDJResponse } = require('./CLAUDE');
+const { searchSong } = require('./MUSIC_API'); // Netease Cloud wrapper
+
+async function handleIntent(input) {
+    // If user says "Play X", bypass heavy reasoning or send to Claude to get the JSON
+    const aiDecision = await getDJResponse(input);
+    
+    const tracksToQueue =[];
+    for (let songName of aiDecision.play) {
+        const trackInfo = await searchSong(songName);
+        tracksToQueue.push(trackInfo);
+    }
+    
+    return {
+        speech: aiDecision.say,
+        queue: tracksToQueue,
+        metadata: aiDecision
+    };
+}
+module.exports = { handleIntent };
+```
+
+**6. `src/SCHEDULER.js` (Schedule Manager)**
+Use `node-cron` to make Claudio autonomous.
+```javascript
+const cron = require('node-cron');
+const { getDJResponse } = require('./CLAUDE');
+
+// 07:00 Planning
+cron.schedule('0 7 * * *', async () => {
+    console.log("Generating daily plan based on Lark/Feishu schedule...");
+    // Fetch schedule from Feishu, feed to Claude, save plan to STATE.DB
+});
+
+// Hourly Check-ins
+cron.schedule('0 * * * *', () => {
+    console.log("Hourly context update (weather, mood). Adjusting queue if needed.");
+});
+```
+
+#### Phase 3: The Interaction Layer (Layer 4)
+
+Set up the Express API and WebSockets to act as the bridge between the backend and your frontend PWA.
+
+**`server.js`**
+```javascript
+const express = require('express');
+const http = require('http');
+const WebSocket = require('ws');
+const { handleIntent } = require('./src/ROUTER');
+const { generateSpeech } = require('./src/TTS');
+
+const app = express();
+app.use(express.json());
+app.use(express.static('public')); // Serve the PWA and /tts folder
+
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server, path: '/stream' });
+
+// HTTP Contract
+app.get('/api/now', (req, res) => res.json({ current: "If - Bread" }));
+app.get('/api/next', (req, res) => res.json({ next:["Sign of the Times"] }));
+app.get('/api/taste', (req, res) => res.send("Profile data"));
+app.get('/api/plan/today', (req, res) => res.send("Today's DJ plan"));
+
+app.post('/api/chat', async (req, res) => {
+    const result = await handleIntent(req.body.message);
+    const audioUrl = await generateSpeech(result.speech);
+    
+    // Broadcast via WS to the PWA to update the UI and play audio
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'DJ_SPEAK', audioUrl: audioUrl, text: result.speech }));
+            client.send(JSON.stringify({ type: 'QUEUE_UPDATE', queue: result.queue }));
+        }
+    });
+    
+    res.json({ success: true });
+});
+
+server.listen(8080, () => console.log('Claudio Server listening on :8080'));
+```
+
+#### Phase 4: Frontend (PWA)
+
+To replicate the visual aesthetic in the video:
+1. Create an `index.html` in the `/public` folder.
+2. Use a CSS grid, a dark theme (purple/black neon accents), and a retro pixelated font (e.g., "VT323" or "Press Start 2P" from Google Fonts) for the clock and currently playing text.
+3. **The Layout:**
+   * **Top:** "Claudio" header with "Dark/Light" toggle.
+   * **Center:** Large pixelated clock (e.g., `23:51`).
+   * **Middle:** The Music Player (`<audio>` tag controlled by JS). Show the waveform, current song ("If — Bread"), play/pause, and a progress bar.
+   * **Bottom/Side:** The Live Chat interface. 
+4. **JavaScript Logic (`app.js`):**
+   * Connect to the WebSocket: `const ws = new WebSocket('ws://localhost:8080/stream');`
+   * Listen for `DJ_SPEAK`. When received, pause the music `<audio>`, play the TTS `<audio>`, and when the TTS finishes, resume the music. This creates the seamless "DJ interrupting the broadcast" effect shown in the video.
+   * Implement Service Workers to cache the interface and prefetch the next 10 seconds of songs to prevent buffering.
+
+#### Phase 5: Hardware Integration (Optional UPnP)
+
+In the video, Claudio connects to a NAIM speaker. You can do this in Node.js using `node-upnp`.
+```javascript
+const UpnpClient = require('node-upnp');
+const client = new UpnpClient({ url: 'http://<your-speaker-ip>:8080/desc.xml' });
+
+async function castToSpeaker(songUrl) {
+    await client.callAction('AVTransport', 'SetAVTransportURI', {
+        InstanceID: 0,
+        CurrentURI: songUrl,
+        CurrentURIMetaData: ''
+    });
+    await client.callAction('AVTransport', 'Play', { InstanceID: 0, Speed: '1' });
+}
+```
+
+---
+
+### Conclusion
+
+By assembling these pieces, you have built exactly what was shown in the video: an agentic system that transforms a static list of MP3s and a Spotify/Netease account into a living, breathing radio station. 
+
+**Claudio** demonstrates the true power of multi-threaded AI workflows. Instead of manually curating playlists while you work—draining your attention—you outsource the curation to an AI that knows your life context. You just keep the PWA on your side screen, chat with it when you need a vibe shift, and let the DJ handle the soundtrack to your day.

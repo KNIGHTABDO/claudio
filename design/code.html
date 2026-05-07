@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Claudio Music Player</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            appka: {
+              dark: '#0a0a0f',
+              panel: '#15151e',
+              panelLight: '#1c1c26',
+              textPrimary: '#ffffff',
+              textSecondary: '#888899',
+              accentGreen: '#00ff88',
+              border: '#2a2a36',
+              inputBg: '#0f0f15',
+            }
+          },
+          fontFamily: {
+            mono: ['"Space Mono"', 'monospace', 'sans-serif'],
+            pixel: ['"Press Start 2P"', 'monospace', 'sans-serif'],
+            sans: ['"Inter"', 'sans-serif'],
+          },
+          backgroundImage: {
+            'dot-pattern': 'radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px)',
+          }
+        }
+      }
+    }
+  </script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&amp;family=Press+Start+2P&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<style data-purpose="custom-styles">
+    body {
+      background-color: #050508;
+      background-image: radial-gradient(circle at 50% 0%, #1a1a2e 0%, #050508 60%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Space Mono', monospace;
+      padding: 2rem;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 600px;
+      background-color: rgba(21, 21, 30, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 0, 0, 0.2);
+      position: relative;
+    }
+
+    .app-container::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-size: 20px 20px;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content-wrapper {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Pixel Font Elements */
+    .pixel-text {
+      font-family: 'Press Start 2P', monospace;
+    }
+
+    .digital-clock {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 3.5rem;
+      letter-spacing: -2px;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+    }
+    
+    .digital-clock-colon {
+      animation: blink 2s infinite;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    @keyframes blink {
+      0%, 50%, 100% { opacity: 1; }
+      25%, 75% { opacity: 0.3; }
+    }
+
+    /* Glassmorphic panels */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+    }
+
+    .chat-bubble {
+      background: rgba(10, 10, 15, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Custom Controls */
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #888899;
+      transition: all 0.2s ease;
+      font-size: 0.75rem;
+    }
+    
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .text-btn {
+      font-size: 0.65rem;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      color: #888899;
+      transition: all 0.2s;
+    }
+    
+    .text-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    /* Progress and Sliders */
+    .progress-bar-container {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      position: relative;
+    }
+    
+    .progress-bar-fill {
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      width: 30%;
+      background: #fff;
+      border-radius: 2px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+
+    .volume-slider {
+      -webkit-appearance: none;
+      width: 60px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.2);
+      outline: none;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+    }
+
+    /* Status Dot */
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #00ff88;
+      box-shadow: 0 0 8px #00ff88;
+      display: inline-block;
+    }
+
+    /* Input Area */
+    .chat-input {
+      background: #0f0f15;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      color: #fff;
+      font-family: 'Space Mono', monospace;
+    }
+    
+    .chat-input:focus {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+
+    /* Avatar */
+    .avatar {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+<!-- BEGIN: Main App Container -->
+<main class="app-container">
+<div class="content-wrapper flex flex-col h-full">
+<!-- BEGIN: Header -->
+<header class="flex justify-between items-center p-6 border-b border-white/5">
+<div class="flex items-center gap-3">
+<img alt="Claudio Avatar" class="w-8 h-8 avatar object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBc0hOHOM4I_4Arky2Fs0wpcrhOvC78j5TTBQTZT9dYWatmMWKcREZTHUijRytPwAimAxagZWwoa3T1MEpVhKPx78MWf-MC3Wk6hxduwLwOwIPFrheiZXDZlev9z4IoHURDy82_gV_rYw9fI8fPczKnXVzyV0A33g7rUUnWRoUNcYF9tDUNOn6SZ8-4hvjDc32xFIDJex0YVmbiSnVx-21Y4FVxa5sQmUQGy76Wx40h8a_74JluzWY2Zph6a_Aa06JPnnIsQMpaw3A"/>
+<h1 class="pixel-text text-xl tracking-widest text-white/90">Claudio</h1>
+</div>
+<div class="flex items-center gap-3">
+<button class="text-xs text-white/50 hover:text-white transition-colors uppercase tracking-wider">Login</button>
+<div class="flex bg-white/5 rounded-full p-1 border border-white/10">
+<button class="text-[10px] bg-white text-black px-3 py-1 rounded-full font-bold uppercase tracking-wider">Dark</button>
+<button class="text-[10px] text-white/50 px-3 py-1 rounded-full uppercase tracking-wider hover:text-white">Light</button>
+</div>
+</div>
+</header>
+<!-- END: Header -->
+<!-- BEGIN: Hero / Clock Section -->
+<section class="py-12 flex flex-col items-center justify-center border-b border-white/5 relative">
+<div class="digital-clock mb-6 flex items-center">
+<span>21</span><span class="digital-clock-colon mx-2">:</span><span>11</span>
+</div>
+<div class="text-center mb-4 text-sm text-white/70 tracking-widest">
+<div class="mb-1">Monday</div>
+<div class="text-xs text-white/40">20 APR 2025</div>
+</div>
+<div class="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-appka-accentGreen">
+<span class="status-dot"></span>
+          ON AIR
+        </div>
+</section>
+<!-- END: Hero / Clock Section -->
+<!-- BEGIN: Player Controls -->
+<section class="p-6 border-b border-white/5 bg-black/20">
+<!-- Track Info & Controls Row -->
+<div class="flex items-center justify-between mb-6">
+<div class="flex items-center gap-4">
+<!-- Equalizer Icon Mock -->
+<div class="flex items-end gap-[2px] h-4">
+<div class="w-[3px] h-full bg-appka-accentGreen animate-[pulse_1s_ease-in-out_infinite]"></div>
+<div class="w-[3px] h-3/4 bg-appka-accentGreen animate-[pulse_1.2s_ease-in-out_infinite_0.1s]"></div>
+<div class="w-[3px] h-1/2 bg-appka-accentGreen animate-[pulse_0.8s_ease-in-out_infinite_0.2s]"></div>
+<div class="w-[3px] h-full bg-appka-accentGreen animate-[pulse_1.5s_ease-in-out_infinite_0.3s]"></div>
+</div>
+<div>
+<div class="text-sm font-bold text-white/90">If - Bread</div>
+<div class="text-[10px] text-white/40 uppercase tracking-widest mt-1">Playing</div>
+</div>
+</div>
+<!-- Main Controls -->
+<div class="flex items-center gap-2">
+<button class="icon-btn"><i class="fas fa-step-backward text-[10px]"></i></button>
+<button class="icon-btn"><i class="fas fa-pause text-[10px]"></i></button>
+<button class="icon-btn"><i class="fas fa-step-forward text-[10px]"></i></button>
+<button class="icon-btn"><i class="fas fa-stop text-[10px]"></i></button>
+</div>
+<!-- Secondary Controls -->
+<div class="flex items-center gap-2">
+<button class="icon-btn"><i class="far fa-heart text-[10px]"></i></button>
+<button class="text-btn">HIDE</button>
+<button class="text-btn">FAV</button>
+<div class="flex items-center gap-2 ml-2">
+<i class="fas fa-volume-up text-[10px] text-white/40"></i>
+<input class="volume-slider" max="100" min="0" type="range" value="70"/>
+</div>
+</div>
+</div>
+<!-- Progress Bar -->
+<div class="flex items-center gap-4 text-[10px] text-white/40">
+<span>0:31</span>
+<div class="flex-1 progress-bar-container">
+<div class="progress-bar-fill"></div>
+</div>
+<span>2:38</span>
+</div>
+</section>
+<!-- END: Player Controls -->
+<!-- BEGIN: Queue Info -->
+<div class="flex justify-between items-center px-6 py-2 border-b border-white/5 bg-black/40 text-[10px] text-white/40 uppercase tracking-widest">
+<span>Queue</span>
+<span>0 Tracks</span>
+</div>
+<!-- END: Queue Info -->
+<!-- BEGIN: Chat Area -->
+<section class="flex-1 overflow-y-auto p-6 flex flex-col gap-6" style="max-height: 400px;">
+<!-- Live Status Bar -->
+<div class="flex items-center justify-between bg-white/5 rounded-lg p-3 border border-white/5">
+<div class="flex items-center gap-3">
+<span class="status-dot"></span>
+<span class="pixel-text text-sm text-white/80">Claudio</span>
+</div>
+<span class="text-[10px] text-appka-accentGreen font-bold tracking-wider">LIVE</span>
+</div>
+<div class="text-center text-[10px] text-white/30 uppercase tracking-widest my-2">
+          Connected to Claudio server
+        </div>
+<!-- Bot Message -->
+<div class="flex gap-4 max-w-[90%]">
+<img alt="Claudio" class="w-8 h-8 rounded-full border border-white/10 self-start mt-1" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAskKe-9FNqQNZL4kBzJyWjc5PZXLRGs-NrH0-0E0Zgo-1P1a9vTdLF18cEAvWoLCZsVMmqHWy-YhBcbMnI2wB-N45A2dlJXsbdmhxtN4ybdnq7CZ6aeQRrvUfgbgubqz9g9-QHJh6VIDuBe3n1j9w0-yj_-Zuii1ONBS2NgmBPu9Z3zIxSzt8zaaetHUAVk4KTVGVdHGrAbrgE-NWtEzz96ySfT-QpafuGbkcSOyOyERTQZa-3rFxTKMxNjVTv7RwppAfqhPnUmRU"/>
+<div class="flex flex-col gap-1">
+<span class="text-[10px] text-white/40 uppercase tracking-widest">Claudio</span>
+<div class="chat-bubble p-4 text-sm text-white/80 leading-relaxed shadow-lg">
+              This is Claudio. It's late on a Monday, and here's a song that moves with your breath. Back in 1971, David Gates picked up a nylon-string guitar and let every line end in a whisper — you'll feel yourself lift off the ground a little. This one's called If. After a long day with Claude Code, just breathe.
+            </div>
+<div class="flex items-center gap-3 mt-1 text-[10px] text-white/40">
+<span>21:02</span>
+<button class="hover:text-white transition-colors flex items-center gap-1 bg-white/5 px-2 py-1 rounded-md border border-white/10">
+<i class="fas fa-play text-[8px]"></i> Replay
+              </button>
+</div>
+</div>
+</div>
+<!-- User Message (Muguo) -->
+<div class="flex gap-4 self-end max-w-[80%] mt-4">
+<div class="flex flex-col gap-1 items-end">
+<span class="text-[10px] text-white/40 uppercase tracking-widest">Muguo</span>
+<div class="glass-panel p-3 text-sm text-white/90">
+              好听
+            </div>
+<span class="text-[10px] text-white/40 mt-1">21:08</span>
+</div>
+<img alt="Muguo" class="w-8 h-8 rounded-full border border-white/10 self-start mt-1" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVAJ3xglsn6qRYgYabeBapr1-uVLPSSwVBTeGssEHiBy1PY7QH7CwB9SId7PgIkVKR7HKtuR7qAUvf-QkGwqLFq13EpR3mY7ri5LjPLHLupvPzC4ye1_vy4slj9B7VtKdzgujP6ey4np-6WG6jD2Ct1v6b9WJwmI-j_aXEF00Sd8wuapWaVm203zAjWL9UhVQTMQiNyvPl1S-VpAPSsO8tKiITURapAa2c490opNoPY24MiPx_FE3LxKW-ISs440jw0gSJYBQPmlg"/>
+</div>
+</section>
+<!-- END: Chat Area -->
+<!-- BEGIN: Input Area -->
+<footer class="p-4 border-t border-white/5 bg-appka-dark">
+<div class="flex gap-3 items-center">
+<input class="chat-input flex-1 py-3 px-4 text-sm bg-appka-inputBg border-white/10 focus:ring-0 focus:border-white/30 rounded-xl transition-colors" placeholder="Say something to the DJ..." type="text"/>
+<button class="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all">
+<i class="fas fa-microphone"></i>
+</button>
+<button class="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white/80 hover:bg-white/20 transition-all">
+<i class="fas fa-arrow-up"></i>
+</button>
+</div>
+<div class="flex justify-between items-center mt-3 px-2 text-[8px] text-white/30 uppercase tracking-widest">
+<span>Claudio FM</span>
+<span>Connected</span>
+</div>
+</footer>
+<!-- END: Input Area -->
+</div>
+</main>
+<!-- END: Main App Container -->
+</body></html>
