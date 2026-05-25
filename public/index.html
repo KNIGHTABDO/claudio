@@ -48,7 +48,6 @@
             overflow-y: auto;
         }
 
-        /* Dotted Grid Background */
         body::before {
             content: '';
             position: absolute;
@@ -57,7 +56,7 @@
             background-size: 24px 24px;
             pointer-events: none;
             z-index: 0;
-            height: 100%; /* Ensure it covers full scroll height */
+            height: 100%;
         }
 
         .app-container {
@@ -76,27 +75,11 @@
             margin-bottom: 4rem;
         }
 
-
         @media (max-width: 768px) {
-            body { 
-                padding: 1rem; 
-                overflow-y: auto; 
-                height: auto;
-                align-items: flex-start;
-            }
-            .app-container {
-                max-width: 500px;
-                height: auto;
-                min-height: auto;
-                overflow: visible;
-            }
-            .digital-clock {
-                font-size: 3rem;
-            }
+            body { padding: 1rem; height: auto; align-items: flex-start; }
+            .app-container { max-width: 500px; }
+            .digital-clock { font-size: 3rem; }
         }
-
-
-
 
         .pixel-text { font-family: 'Press Start 2P', monospace; }
         .mono-text { font-family: 'Space Mono', monospace; }
@@ -110,28 +93,11 @@
             color: #fff;
         }
 
-        .digital-clock-colon {
-            animation: blink 2s infinite;
-            opacity: 0.5;
-        }
+        .digital-clock-colon { animation: blink 2s infinite; opacity: 0.5; }
+        @keyframes blink { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0.2; } }
 
-        @keyframes blink {
-            0%, 50%, 100% { opacity: 1; }
-            25%, 75% { opacity: 0.2; }
-        }
-
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-        }
-
-        .chat-bubble {
-            background: rgba(15, 15, 20, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
-        }
+        .glass-panel { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; }
+        .chat-bubble { background: rgba(15, 15, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; backdrop-filter: blur(10px); }
 
         .icon-btn {
             width: 40px; height: 40px; border-radius: 50%; 
@@ -140,12 +106,7 @@
             color: rgba(255, 255, 255, 0.5); transition: all 0.2s;
             background: rgba(255, 255, 255, 0.03);
         }
-        .icon-btn:hover { 
-            background: rgba(255, 255, 255, 0.1); 
-            color: #fff; 
-            border-color: var(--accent-color);
-            box-shadow: 0 0 15px var(--accent-glow);
-        }
+        .icon-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; border-color: var(--accent-color); box-shadow: 0 0 15px var(--accent-glow); }
 
         .text-btn {
             font-size: 10px; font-weight: 600; letter-spacing: 1px;
@@ -155,70 +116,24 @@
         }
         .text-btn:hover { border-color: white; color: white; }
 
-        /* Progress Bar */
-        .progress-bar-container {
-            height: 4px; background: rgba(255, 255, 255, 0.05);
-            border-radius: 2px; position: relative;
-        }
-        .progress-bar-fill {
-            position: absolute; top: 0; left: 0; bottom: 0;
-            background: white; border-radius: 2px;
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
-            transition: width 0.1s linear;
-        }
+        .progress-bar-container { height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 2px; position: relative; }
+        .progress-bar-fill { position: absolute; top: 0; left: 0; bottom: 0; background: white; border-radius: 2px; box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); transition: width 0.1s linear; }
 
-        /* Equalizer */
-        .equalizer .bar {
-            width: 3px; background-color: var(--accent-color);
-            transition: height 0.2s ease;
-        }
-        .equalizer.is-playing .bar {
-            animation: dance 1s infinite alternate;
-            box-shadow: 0 0 10px var(--accent-glow);
-        }
-        .equalizer.is-playing .bar:nth-child(1) { animation-duration: 0.4s; }
-        .equalizer.is-playing .bar:nth-child(2) { animation-duration: 0.6s; }
-        .equalizer.is-playing .bar:nth-child(3) { animation-duration: 0.5s; }
-        .equalizer.is-playing .bar:nth-child(4) { animation-duration: 0.7s; }
+        .equalizer .bar { width: 3px; background-color: var(--accent-color); transition: height 0.2s ease; }
+        .equalizer.is-playing .bar { animation: dance 1s infinite alternate; box-shadow: 0 0 10px var(--accent-glow); }
+        @keyframes dance { 0% { height: 4px; } 100% { height: 20px; } }
 
-        @keyframes dance {
-            0% { height: 4px; }
-            100% { height: 20px; }
-        }
-
-        .status-dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            background-color: var(--accent-color);
-            box-shadow: 0 0 10px var(--accent-color);
-        }
-
-        .volume-slider {
-            -webkit-appearance: none; width: 80px; height: 2px;
-            background: rgba(255, 255, 255, 0.1); outline: none;
-        }
-        .volume-slider::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 12px; height: 12px;
-            border-radius: 50%; background: white; cursor: pointer;
-            box-shadow: 0 0 10px white;
-        }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color); }
+        .volume-slider { -webkit-appearance: none; width: 80px; height: 2px; background: rgba(255, 255, 255, 0.1); outline: none; }
+        .volume-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: white; cursor: pointer; box-shadow: 0 0 10px white; }
 
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
 
         /* Light Mode Overrides */
-        body.light-mode {
-            background-color: #f0f2f5;
-            background-image: radial-gradient(circle at 50% 0%, #ffffff 0%, #e0e4e8 70%);
-            color: #1a1a1b;
-        }
-        body.light-mode::before {
-            background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px);
-        }
-        body.light-mode .app-container {
-            background-color: rgba(255, 255, 255, 0.9);
-            border-color: rgba(0, 0, 0, 0.05);
-            box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.1);
-        }
+        body.light-mode { background-color: #f0f2f5; background-image: radial-gradient(circle at 50% 0%, #ffffff 0%, #e0e4e8 70%); color: #1a1a1b; }
+        body.light-mode::before { background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px); }
+        body.light-mode .app-container { background-color: rgba(255, 255, 255, 0.9); border-color: rgba(0, 0, 0, 0.05); box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.1); }
         body.light-mode .digital-clock { color: #1a1a1b; text-shadow: none; }
         body.light-mode .glass-panel { background: rgba(0, 0, 0, 0.02); border-color: rgba(0, 0, 0, 0.05); }
         body.light-mode .chat-bubble { background: white; border-color: rgba(0, 0, 0, 0.05); color: #333; }
@@ -226,12 +141,31 @@
         body.light-mode .text-white\/80 { color: #222; }
         body.light-mode .mono-text { color: #666; }
         body.light-mode .icon-btn { background: rgba(0, 0, 0, 0.03); color: #666; }
-        body.light-mode .progress-bar-fill { background: var(--accent-color); }
+
+        /* Ignition Overlay */
+        #ignition-overlay {
+            position: fixed; inset: 0; background: black; z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rem;
+            transition: opacity 0.8s ease, visibility 0.8s;
+        }
+        #ignition-overlay.started { opacity: 0; visibility: hidden; }
+        .ignition-btn {
+            background: white; color: black; padding: 1.5rem 4rem; border-radius: 500px;
+            font-weight: 900; letter-spacing: 0.3em; text-transform: uppercase; font-size: 14px;
+            cursor: pointer; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 0 50px rgba(255,255,255,0.2);
+        }
+        .ignition-btn:hover { transform: scale(1.05); background: #22c55e; }
     </style>
 </head>
-<body>
+<body class="p-4 md:p-8">
+    <div id="ignition-overlay">
+        <div class="text-white/20 text-[10px] uppercase tracking-[0.5em]">Neural Frequency Synced</div>
+        <button class="ignition-btn" id="start-station">Start Station</button>
+        <div class="text-white/20 text-[10px] uppercase tracking-[0.5em]">Claudio FM Pro v1.0</div>
+    </div>
+
     <main class="app-container">
-        <!-- Header -->
         <header class="flex justify-between items-center px-10 py-8 border-b border-white/5">
             <div class="flex items-center gap-4">
                 <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Claudio" class="w-10 h-10 rounded-full border border-white/10 p-1 bg-white/5" alt="Claudio">
@@ -247,37 +181,27 @@
         </header>
 
         <div class="flex flex-col md:flex-row flex-1">
-            <!-- Left Side: Clock & Player -->
             <div class="w-full md:w-1/2 flex flex-col border-b md:border-b-0 md:border-r border-white/5">
                 <section class="flex flex-col items-center justify-center p-6 md:p-12 relative min-h-[400px]">
-
-                    <div class="digital-clock mb-6" id="clock">
-                        21<span class="digital-clock-colon">:</span>11
-                    </div>
+                    <div class="digital-clock mb-6" id="clock">--<span class="digital-clock-colon">:</span>--</div>
                     <div class="text-center mb-8">
-                        <div class="text-xl font-bold tracking-[0.3em] uppercase text-white/80" id="day-name">Monday</div>
-                        <div class="text-xs tracking-[0.5em] text-white/30 mt-2" id="date-string">20 APR 2025</div>
+                        <div class="text-xl font-bold tracking-[0.3em] uppercase text-white/80" id="day-name">---</div>
+                        <div class="text-xs tracking-[0.5em] text-white/30 mt-2" id="date-string">---</div>
                     </div>
                     <div class="flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] font-bold text-appka-accentGreen">
-                        <span class="status-dot"></span>
-                        ON AIR
+                        <span class="status-dot"></span> ON AIR
                     </div>
                 </section>
 
-                <!-- Player Strip -->
                 <section class="p-6 md:p-10 border-t border-white/5 bg-black/40">
-
                     <div class="flex items-center justify-between mb-10">
                         <div class="flex items-center gap-6">
                             <div id="equalizer" class="equalizer flex items-end gap-[3px] h-6">
-                                <div class="bar h-[6px]"></div>
-                                <div class="bar h-[12px]"></div>
-                                <div class="bar h-[8px]"></div>
-                                <div class="bar h-[14px]"></div>
+                                <div class="bar h-[6px]"></div><div class="bar h-[12px]"></div><div class="bar h-[8px]"></div><div class="bar h-[14px]"></div>
                             </div>
                             <div>
-                                <div class="text-xl font-bold text-white" id="current-track-title">Waiting for signal...</div>
-                                <div class="text-[10px] text-white/30 uppercase tracking-[0.2em] mt-2" id="player-status">Idle</div>
+                                <div class="text-xl font-bold text-white" id="current-track-title">Connecting...</div>
+                                <div class="text-[10px] text-white/30 uppercase tracking-[0.2em] mt-2" id="player-status">Signal Syncing</div>
                             </div>
                         </div>
                         <div class="flex gap-3">
@@ -302,15 +226,12 @@
 
                     <div class="flex items-center gap-6 text-[10px] mono-text text-white/30">
                         <span id="current-time">0:00</span>
-                        <div class="flex-1 progress-bar-container">
-                            <div class="progress-bar-fill" id="progress-fill"></div>
-                        </div>
+                        <div class="flex-1 progress-bar-container"><div class="progress-bar-fill" id="progress-fill"></div></div>
                         <span id="duration">0:00</span>
                     </div>
                 </section>
             </div>
 
-            <!-- Right Side: Chat & Intelligence -->
             <div class="w-full md:w-1/2 flex flex-col bg-black/20">
                 <div class="px-8 py-4 border-b border-white/5 flex justify-between items-center">
                     <span class="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold">Transmission Log</span>
@@ -322,11 +243,7 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="overflow-y-auto p-6 md:p-10 flex flex-col gap-6 md:gap-8" id="chat-history" style="max-height: 600px;">
-
-
-                    <!-- Status Header inside chat -->
                     <div class="flex items-center justify-between glass-panel p-5 border-l-2 border-appka-accentGreen">
                         <div class="flex items-center gap-4">
                             <span class="status-dot"></span>
@@ -334,24 +251,16 @@
                         </div>
                         <span class="text-[10px] text-appka-accentGreen font-bold tracking-[0.2em]">LIVE 128KBPS</span>
                     </div>
-                    
-                    <div class="text-center text-[10px] uppercase tracking-[0.3em] text-white/10 my-4">
-                        Secure Neural Link Established
-                    </div>
+                    <div class="text-center text-[10px] uppercase tracking-[0.3em] text-white/10 my-4">Secure Neural Link Established</div>
                 </div>
-
-                <!-- Input Footer -->
                 <footer class="p-8 border-t border-white/5 bg-black/40">
                     <div class="flex gap-4 items-center">
                         <input id="chat-input" class="flex-1 py-4 px-6 text-sm bg-white/5 border border-white/10 focus:ring-0 focus:border-appka-accentGreen rounded-xl text-white placeholder-white/20 transition-all" placeholder="Communicate with the station..." type="text"/>
-                        <button id="mic-btn" class="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-all">
-                            <i class="fas fa-microphone"></i>
-                        </button>
                         <button id="send-btn" class="w-14 h-14 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white/80 hover:bg-white/20 hover:border-white/40 transition-all">
                             <i class="fas fa-arrow-up"></i>
                         </button>
                     </div>
-                </footer
+                </footer>
             </div>
         </div>
     </main>

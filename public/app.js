@@ -18,13 +18,71 @@ let queue = [];
 let isPlaying = false;
 let currentTrackIndex = -1;
 let currentTrack = null;
+let hasInteracted = false;
+let pendingRoutine = null;
+let isResumedSession = false;
+
+// Ignition Handler
+document.getElementById('start-station').onclick = () => {
+    hasInteracted = true;
+    document.getElementById('ignition-overlay').classList.add('started');
+    
+    // Connect to WebSocket after user interaction to prevent autoplay block
+    if (!ws) {
+        initWebSocket();
+    }
+    
+    if (isResumedSession) {
+        console.log('[Ignition] Resuming active saved player session...');
+        if (isPlaying) {
+            audioPlayer.play().catch(err => {
+                console.error('[Ignition] Failed to play restored audio stream:', err);
+                isPlaying = false;
+                updatePlayBtn();
+            });
+        } else {
+            audioPlayer.play().then(() => audioPlayer.pause()).catch(() => {});
+        }
+        ttsPlayer.play().then(() => ttsPlayer.pause()).catch(() => {});
+    } else {
+        // Silent play to unlock audio
+        audioPlayer.play().then(() => audioPlayer.pause()).catch(() => {});
+        ttsPlayer.play().then(() => ttsPlayer.pause()).catch(() => {});
+        
+        // Play any pending routine that arrived before the user clicked start
+        if (pendingRoutine) {
+            console.log('[Ignition] Playing pending startup routine...');
+            const data = pendingRoutine;
+            pendingRoutine = null;
+            
+            if (data.intent === 'interrupt') {
+                stopEverything();
+                if (data.queue && data.queue.length > 0) {
+                    queue = [...data.queue];
+                    playSequence(data.ttsUrl);
+                } else if (data.ttsUrl) {
+                    playTTS(data.ttsUrl);
+                }
+            } else {
+                if (data.queue && data.queue.length > 0) {
+                    const isFirstBatch = (currentTrackIndex === -1);
+                    queue = [...queue, ...data.queue];
+                    if (isFirstBatch) playSequence(data.ttsUrl);
+                    else if (data.ttsUrl) playTTS(data.ttsUrl);
+                } else if (data.ttsUrl) {
+                    playTTS(data.ttsUrl);
+                }
+            }
+        }
+    }
+};
 
 // Clock Logic
 function updateClock() {
     const now = new Date();
     const h = String(now.getHours()).padStart(2, '0');
     const m = String(now.getMinutes()).padStart(2, '0');
-    clockEl.innerHTML = `${h}<span class="digital-clock-colon mx-1">:</span>${m}`;
+    if (clockEl) clockEl.innerHTML = `${h}<span class="digital-clock-colon mx-1">:</span>${m}`;
     const dayName = now.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
     const dateStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase();
     if (dayEl) dayEl.innerText = dayName;
@@ -43,39 +101,74 @@ if (volumeSlider) {
 }
 
 // WebSocket Logic
-const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const ws = new WebSocket(`${protocol}//${window.location.host}/stream`);
+let ws;
 
-ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.type === 'DJ_RESPONSE' || data.type === 'DJ_ROUTINE') {
-        addMessage('claudio', data.speech, data.ttsUrl);
-        
-        // Always speak if TTS URL exists
-        if (data.ttsUrl) {
-            // If it's an interrupt, we kill the music first, then play sequence
-            if (data.intent === 'interrupt') {
-                stopEverything();
-                if (data.queue && data.queue.length > 0) {
+function initWebSocket() {
+    console.log('[WebSocket] Initializing broadcast receiver...');
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${protocol}//${window.location.host}/stream`);
+
+    ws.onopen = () => {
+        console.log('[WebSocket] Connected. Sending initialization handshake...');
+        ws.send(JSON.stringify({
+            type: 'INIT_SESSION',
+            resume: isResumedSession
+        }));
+        isResumedSession = false; // Reset resumed session flag after sending handshake
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'DJ_RESPONSE' || data.type === 'DJ_ROUTINE') {
+            addMessage('claudio', data.speech, data.ttsUrl);
+            
+            if (!hasInteracted) {
+                console.log('[WebSocket] Interaction pending. Saving routine for after ignition overlay is clicked.');
+                pendingRoutine = data;
+                return;
+            }
+            
+            if (data.intent === 'interrupt' && data.queue && data.queue.length > 0) {
+                // Check if the requested song is already actively playing (fuzzy similarity check)
+                const isSameTrack = currentTrack && data.queue.length === 1 && areTracksSimilar(data.queue[0], currentTrack);
+                                    
+                if (isSameTrack) {
+                    console.log('[WebSocket] Requested song is already playing. Ducking volume and speaking instead of interrupting.');
+                    if (data.ttsUrl) {
+                        playTTS(data.ttsUrl);
+                    }
+                } else {
+                    stopEverything();
                     queue = [...data.queue];
                     playSequence(data.ttsUrl);
-                } else {
-                    playTTS(data.ttsUrl);
                 }
             } else {
-                // If it's just a chat or append, we talk over music
+                // If intent is append, OR if we have no new tracks to play (pure conversational turn)
                 if (data.queue && data.queue.length > 0) {
                     const isFirstBatch = (currentTrackIndex === -1);
                     queue = [...queue, ...data.queue];
-                    if (isFirstBatch) playSequence(data.ttsUrl);
-                    else playTTS(data.ttsUrl);
-                } else {
+                    if (isFirstBatch) {
+                        playSequence(data.ttsUrl);
+                    } else if (data.ttsUrl) {
+                        playTTS(data.ttsUrl);
+                    }
+                } else if (data.ttsUrl) {
+                    // Chat-only turn: Just speak over the currently playing music!
                     playTTS(data.ttsUrl);
                 }
             }
         }
-    }
-};
+    };
+    
+    ws.onclose = () => {
+        console.warn('[WebSocket] Disconnected. Reconnecting in 3s...');
+        setTimeout(initWebSocket, 3000);
+    };
+    
+    ws.onerror = (err) => {
+        console.error('[WebSocket] Error:', err);
+    };
+}
 
 function stopEverything() {
     queue = []; currentTrackIndex = -1; currentTrack = null;
@@ -83,6 +176,7 @@ function stopEverything() {
     ttsPlayer.pause(); ttsPlayer.src = ""; ttsPlayer.removeAttribute('src'); ttsPlayer.load();
     isPlaying = false; updatePlayBtn();
     currentTrackTitle.innerText = "Signal Lost..."; playerStatus.innerText = "IDLE";
+    savePlayerState();
 }
 
 async function playSequence(ttsUrl) {
@@ -91,6 +185,7 @@ async function playSequence(ttsUrl) {
 }
 
 function playTTS(url, btn = null) {
+    if (!hasInteracted) return Promise.resolve();
     return new Promise((resolve) => {
         const originalVolume = audioPlayer.volume;
         audioPlayer.volume = originalVolume * 0.2;
@@ -98,8 +193,7 @@ function playTTS(url, btn = null) {
         ttsPlayer.src = url;
         
         const cleanup = () => {
-            ttsPlayer.onended = null;
-            ttsPlayer.onerror = null;
+            ttsPlayer.onended = null; ttsPlayer.onerror = null;
             audioPlayer.volume = originalVolume;
             playerStatus.innerText = isPlaying ? 'PLAYING' : 'IDLE';
             resolve();
@@ -107,7 +201,7 @@ function playTTS(url, btn = null) {
 
         ttsPlayer.onended = cleanup;
         ttsPlayer.onerror = (e) => {
-            console.error('TTS Playback Failed');
+            console.error('TTS Failed');
             if (btn) {
                 btn.innerHTML = '<i class="fas fa-history"></i> Expired';
                 btn.classList.add('opacity-30');
@@ -117,7 +211,7 @@ function playTTS(url, btn = null) {
         };
 
         ttsPlayer.play().catch(err => {
-            console.error('TTS Failed:', err);
+            console.error('TTS Playback Blocked:', err);
             cleanup();
         });
     });
@@ -138,6 +232,7 @@ function playNext() {
     } else {
         playerStatus.innerText = 'IDLE'; currentTrackIndex = -1; queue = []; isPlaying = false; updatePlayBtn();
     }
+    savePlayerState();
 }
 
 function updateMoodColor(imageUrl) {
@@ -211,15 +306,21 @@ document.getElementById('prev').onclick = () => {
 const likeBtn = document.querySelector('.far.fa-heart').parentElement;
 likeBtn.onclick = async () => {
     if (!currentTrack) return;
-    likeBtn.classList.toggle('text-red-500');
-    likeBtn.innerHTML = likeBtn.classList.contains('text-red-500') ? '<i class="fas fa-heart"></i>' : '<i class="far fa-heart"></i>';
+    const isLiked = likeBtn.classList.toggle('text-red-500');
+    likeBtn.innerHTML = isLiked ? '<i class="fas fa-heart"></i>' : '<i class="far fa-heart"></i>';
+    
     await fetch('/api/like', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ song: currentTrack.name, artist: currentTrack.artist })
     });
+    
     addMessage('user', `I really like "${currentTrack.name}"!`);
-    await sendMessageToServer(`I just liked "${currentTrack.name}" by ${currentTrack.artist}. Remember this for my taste profile.`);
+    
+    // Simulate a friendly local DJ acknowledgement without interrupting the music stream
+    setTimeout(() => {
+        addMessage('claudio', `I've noted that down in your favorites, sir. Excellent taste!`, null);
+    }, 600);
 };
 
 document.querySelectorAll('.text-btn').forEach(btn => {
@@ -258,17 +359,128 @@ function updatePlayBtn() {
 async function sendMessage() {
     const text = chatInput.value.trim(); if (!text) return; addMessage('user', text); chatInput.value = ''; await sendMessageToServer(text);
 }
+
 audioPlayer.ontimeupdate = () => {
-    const d = audioPlayer.duration; const isL = !isL || d === 0;
-    progressFill.style.width = `${isL ? 100 : (audioPlayer.currentTime / d) * 100}%`;
-    currentTimeEl.innerText = formatTime(audioPlayer.currentTime); durationEl.innerText = isL ? 'LIVE' : formatTime(d);
+    const d = audioPlayer.duration; const isFiniteD = isFinite(d) && d > 0;
+    progressFill.style.width = `${isFiniteD ? (audioPlayer.currentTime / d) * 100 : 100}%`;
+    currentTimeEl.innerText = formatTime(audioPlayer.currentTime); durationEl.innerText = isFiniteD ? formatTime(d) : 'LIVE';
+    savePlayerState();
 };
-playPauseBtn.onclick = () => { if (audioPlayer.paused) { audioPlayer.play(); isPlaying = true; } else { audioPlayer.pause(); isPlaying = false; } updatePlayBtn(); };
-document.getElementById('skip').onclick = () => { if (queue.length > 0 && currentTrackIndex < queue.length - 1) playNext(); else sendMessageToServer("Pick the next set based on the current vibe."); };
+
+playPauseBtn.onclick = () => { 
+    if (audioPlayer.paused) { 
+        audioPlayer.play(); isPlaying = true; 
+    } else { 
+        audioPlayer.pause(); isPlaying = false; 
+    } 
+    updatePlayBtn(); 
+    savePlayerState();
+};
+
+document.getElementById('skip').onclick = () => { 
+    if (queue.length > 0 && currentTrackIndex < queue.length - 1) playNext(); 
+    else sendMessageToServer("Pick the next song based on the current vibe."); 
+};
 
 async function sendMessageToServer(text) {
     const th = document.getElementById('thinking-indicator'); if (th) th.classList.remove('hidden');
     try { await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text }) }); }
     catch (err) { console.error(err); } finally { if (th) th.classList.add('hidden'); }
 }
+
+// Fuzzy similarity matching to protect playing song from restarts
+function areTracksSimilar(t1, t2) {
+    if (!t1 || !t2) return false;
+    if (t1.id === t2.id) return true;
+    
+    const cleanStr = (str) => {
+        return str.toLowerCase()
+                  .replace(/[\(\)\[\]\-+\|]/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+    };
+    
+    const n1 = cleanStr(t1.name);
+    const n2 = cleanStr(t2.name);
+    
+    if (n1.includes(n2) || n2.includes(n1)) return true;
+    
+    const words1 = n1.split(' ').filter(w => w.length > 2);
+    const words2 = n2.split(' ').filter(w => w.length > 2);
+    if (words1.length === 0 || words2.length === 0) return false;
+    
+    const intersection = words1.filter(w => words2.includes(w));
+    return intersection.length >= 2;
+}
+
+// LocalStorage Player State Save & Load
+function savePlayerState() {
+    try {
+        localStorage.setItem('claudio_player_state', JSON.stringify({
+            queue: queue,
+            currentTrackIndex: currentTrackIndex,
+            isPlaying: isPlaying,
+            currentTime: audioPlayer.currentTime,
+            volume: volumeSlider ? volumeSlider.value : 80
+        }));
+    } catch (e) {
+        console.error('[State Saver] Failed to save player state:', e);
+    }
+}
+
+function loadPlayerState() {
+    try {
+        const stateStr = localStorage.getItem('claudio_player_state');
+        if (!stateStr) return;
+        const state = JSON.parse(stateStr);
+        if (!state.queue || state.queue.length === 0) return;
+        
+        queue = state.queue;
+        currentTrackIndex = state.currentTrackIndex !== undefined ? state.currentTrackIndex : -1;
+        isPlaying = state.isPlaying || false;
+        
+        if (volumeSlider) {
+            volumeSlider.value = state.volume !== undefined ? state.volume : 80;
+            const v = volumeSlider.value / 100;
+            audioPlayer.volume = v;
+            ttsPlayer.volume = v;
+        }
+
+        if (currentTrackIndex >= 0 && currentTrackIndex < queue.length) {
+            currentTrack = queue[currentTrackIndex];
+            currentTrackTitle.innerText = `${currentTrack.name} - ${currentTrack.artist}`;
+            playerStatus.innerText = isPlaying ? 'PLAYING' : 'PAUSED';
+            updateMoodColor(currentTrack.cover);
+            
+            audioPlayer.src = currentTrack.url;
+            audioPlayer.currentTime = state.currentTime || 0;
+            isResumedSession = true;
+            updatePlayBtn();
+            console.log('[State Loader] Restored player state successfully:', currentTrack.name);
+        }
+    } catch (e) {
+        console.error('[State Loader] Failed to load player state:', e);
+    }
+}
+
+// Chat History Synchronization
+async function restoreChatHistory() {
+    try {
+        const res = await fetch('/api/history');
+        const data = await res.json();
+        if (data.success && data.history) {
+            console.log(`[History] Restoring ${data.history.length} historical messages...`);
+            data.history.forEach(msg => {
+                addMessage(msg.role, msg.content, msg.ttsUrl);
+            });
+        }
+    } catch (err) {
+        console.error('[History] Failed to restore chat history:', err);
+    }
+}
+
+// Run Loader & Sync on Page Start
+loadPlayerState();
+restoreChatHistory();
+
 window.playTTS = playTTS;

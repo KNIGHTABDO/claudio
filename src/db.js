@@ -63,5 +63,14 @@ module.exports = {
         else resolve(rows);
       });
     });
+  },
+  getRecentMessages: (limit = 10) => {
+    return new Promise((resolve, reject) => {
+      db.all('SELECT * FROM messages ORDER BY id DESC LIMIT ?', [limit], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows.reverse()); // Chronological order
+      });
+    });
   }
 };
+

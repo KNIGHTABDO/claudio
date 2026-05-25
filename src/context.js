@@ -4,7 +4,7 @@ const axios = require('axios');
 const db = require('./db');
 require('dotenv').config();
 
-async function buildContext(userInput) {
+async function getContextData() {
   const readDoc = (file) => fs.readFileSync(path.resolve(__dirname, `../user/${file}`), 'utf-8');
   
   const taste = readDoc('taste.md');
@@ -12,7 +12,7 @@ async function buildContext(userInput) {
   const moodRules = readDoc('mood-rules.md');
   const persona = fs.readFileSync(path.resolve(__dirname, '../prompts/dj-persona.md'), 'utf-8');
   
-  const recentPlays = await db.getRecentPlays(5);
+  const recentPlays = await db.getRecentPlays(10);
   const playHistory = recentPlays.map(p => `${p.song_name} - ${p.artist}`).join(', ');
 
   // Fetch Weather
@@ -26,29 +26,59 @@ async function buildContext(userInput) {
     console.warn('Weather fetch failed, using default.');
   }
 
+  // Load playlists.json as favorites
+  let favorites = '';
+  try {
+    const favoritesPath = path.resolve(__dirname, '../user/playlists.json');
+    if (fs.existsSync(favoritesPath)) {
+      const favList = JSON.parse(fs.readFileSync(favoritesPath, 'utf-8'));
+      favorites = favList.map(f => `- ${f.name} - ${f.artist}`).join('\n');
+    }
+  } catch (err) {
+    console.warn('Failed to load user playlists.json:', err.message);
+  }
+
+  return {
+    taste,
+    routines,
+    moodRules,
+    persona,
+    weather,
+    playHistory,
+    favorites,
+    currentTime: new Date().toLocaleTimeString()
+  };
+}
+
+async function buildContext(userInput) {
+  const data = await getContextData();
+
   return `
 [SYSTEM PERSONA]
-${persona}
+${data.persona}
 
 [USER TASTE]
-${taste}
+${data.taste}
 
 [USER ROUTINES]
-${routines}
+${data.routines}
 
 [MOOD RULES]
-${moodRules}
+${data.moodRules}
 
 [ENVIRONMENT]
 Time: ${new Date().toLocaleString()}
-Weather: ${weather}
+Weather: ${data.weather}
 
 [MEMORY RECALL]
-Recently played: ${playHistory || 'Nothing yet'}
+Recently played: ${data.playHistory || 'Nothing yet'}
+Favorites:
+${data.favorites}
 
 [USER INPUT]
 ${userInput || 'The radio is starting up. Introduce yourself and play something that fits the current vibe.'}
 `;
 }
 
-module.exports = { buildContext };
+module.exports = { buildContext, getContextData };
+

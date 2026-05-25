@@ -10,12 +10,17 @@ node_modules/
 .env.production.local
 
 # Database / State
+state.db
 *.db
 *.db-journal
 user/playlists.json
 user/taste.md
 
+# TTS Caches
+public/tts/*.mp3
+
 # Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -24,8 +29,11 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Build
+# Build & Archives
 dist/
 build/
-
-*.gz
+claudio_deployment.tar.gz
+*.tar.gz
+*.zip
+*.tar
+*.tgz

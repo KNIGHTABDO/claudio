@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const { pipeline } = require('stream');
 const { handleIntent } = require('./src/router');
@@ -21,13 +22,21 @@ const wss = new WebSocket.Server({ server, path: '/stream' });
 wss.on('connection', (ws) => {
   console.log('New listener connected.');
   
-  // If idle, trigger a session start
-  handleIntent(null).then(result => {
-    ws.send(JSON.stringify({ type: 'DJ_ROUTINE', ...result }));
-  });
-
-  ws.on('message', (msg) => {
-    // Handle incoming WS messages if needed
+  ws.on('message', async (msgStr) => {
+    try {
+      const msg = JSON.parse(msgStr);
+      if (msg.type === 'INIT_SESSION') {
+        if (!msg.resume) {
+          console.log('[Session] New session init requested. Triggering startup curation...');
+          const result = await handleIntent(null);
+          ws.send(JSON.stringify({ type: 'DJ_ROUTINE', ...result }));
+        } else {
+          console.log('[Session] Resuming existing session. Skipping startup curation.');
+        }
+      }
+    } catch (err) {
+      console.error('[WebSocket Message Error]', err);
+    }
   });
 });
 
@@ -48,6 +57,38 @@ setInterval(cleanupTTS, 60 * 1000); // Run every minute
 // API Endpoints
 app.get('/api/status', (req, res) => {
   res.json({ status: 'ON AIR', time: new Date().toLocaleTimeString() });
+});
+
+app.get('/api/history', async (req, res) => {
+  try {
+    const db = require('./src/db');
+    const crypto = require('crypto');
+    const messages = await db.getRecentMessages(15);
+    
+    const mappedMessages = messages.map(msg => {
+      if (msg.role === 'claudio') {
+        const cleanText = msg.content.replace(/\[.*?\]/g, '').trim();
+        const hash = crypto.createHash('md5').update(cleanText).digest('hex');
+        const ttsFileName = `${hash}.mp3`;
+        const ttsFilePath = path.join(__dirname, 'public/tts', ttsFileName);
+        const hasTts = fs.existsSync(ttsFilePath);
+        return {
+          role: 'claudio',
+          content: msg.content,
+          ttsUrl: hasTts ? `/tts/${ttsFileName}` : null
+        };
+      }
+      return {
+        role: 'user',
+        content: msg.content
+      };
+    });
+    
+    res.json({ success: true, history: mappedMessages });
+  } catch (err) {
+    console.error('[API History Error]', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 app.post('/api/chat', async (req, res) => {
@@ -88,7 +129,11 @@ app.get('/api/stream', (req, res) => {
 
   // Use yt-dlp to extract best audio and pipe it to ffmpeg for mp3 conversion on the fly
   // This ensures maximum compatibility and zero disk usage.
-  const ytdlp = spawn('yt-dlp', [
+  // Use absolute paths for production reliability on Ubuntu
+  const YT_DLP_PATH = process.platform === 'win32' ? 'yt-dlp' : '/usr/local/bin/yt-dlp';
+  const FFMPEG_PATH = process.platform === 'win32' ? 'ffmpeg' : '/usr/bin/ffmpeg';
+
+  const ytdlp = spawn(YT_DLP_PATH, [
     '-f', 'bestaudio',
     '-o', '-',
     '--no-playlist',
@@ -97,7 +142,7 @@ app.get('/api/stream', (req, res) => {
     videoUrl
   ]);
 
-  const ffmpeg = spawn('ffmpeg', [
+  const ffmpeg = spawn(FFMPEG_PATH, [
     '-i', 'pipe:0',
     '-f', 'mp3',
     '-acodec', 'libmp3lame',

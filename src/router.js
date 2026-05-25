@@ -12,11 +12,19 @@ async function handleIntent(userInput) {
   // 2. Get Brain Decision (Claude)
   const aiDecision = await getDJResponse(userInput);
   
-  // FORCE INTERRUPT OVERRIDE: If user uses switch/play/change keywords
-  const forceKeywords = ['play', 'switch', 'change', 'stop', 'something else', 'next'];
-  if (userInput && forceKeywords.some(k => userInput.toLowerCase().includes(k))) {
-    aiDecision.intent = 'interrupt';
-    console.log('!!! BACKEND OVERRIDE: Forcing Interrupt intent !!!');
+  // FORCE INTENT OVERRIDE:
+  // For manual user chat messages, we default to 'interrupt' so Claudio immediately pivots 
+  // and starts playing the new tracks, unless the user explicitly asks to queue/append it.
+  if (userInput) {
+    const appendKeywords = ['queue', 'add to queue', 'append', 'later', 'next in line', 'add this'];
+    const hasAppendRequest = appendKeywords.some(k => userInput.toLowerCase().includes(k));
+    if (hasAppendRequest) {
+      aiDecision.intent = 'append';
+      console.log('!!! BACKEND OVERRIDE: Forcing Append intent based on user request !!!');
+    } else {
+      aiDecision.intent = 'interrupt';
+      console.log('!!! BACKEND OVERRIDE: Forcing Interrupt intent for manual user chat !!!');
+    }
   }
   
   console.log('DJ Decision:', aiDecision.reason);
