@@ -11,13 +11,13 @@ const tools = [
     type: 'function',
     function: {
       name: 'searchWeb',
-      description: 'Search the web using Jina AI to research music, artist facts, new albums, release dates, tracklists, or real-time cultural knowledge.',
+      description: 'Search the web using Tinyfish AI to research music, artist facts, new albums, release dates, tracklists, or real-time cultural knowledge.',
       parameters: {
         type: 'object',
         properties: {
           query: {
             type: 'string',
-            description: 'The search query to send to Jina AI (e.g., "Moroccan rapper STORMY new album" or "dizzy dross omar track list").'
+            description: 'The search query to send to Tinyfish AI (e.g., "Moroccan rapper STORMY new album" or "dizzy dross omar track list").'
           }
         },
         required: ['query']
@@ -78,7 +78,7 @@ User Favorites Playlist:
 ${ctxData.favorites}
 
 [AVAILABLE TOOLS]
-You have access to the \`searchWeb\` tool which searches the web using Jina AI. 
+You have access to the \`searchWeb\` tool which searches the web using Tinyfish AI. 
 If the user asks about an artist, song, album, tracklist, or release date you do not fully know, or if you need real-time data to verify music facts (such as whether an artist is a pop singer or rapper), you MUST call the \`searchWeb\` tool with a highly specific search query.
 Once you receive the tool response, weave the returned facts into your DJ introduction speech. Keep it natural and conversational!
 

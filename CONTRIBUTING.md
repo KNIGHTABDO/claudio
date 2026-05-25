@@ -76,7 +76,7 @@ Ensure you have the following components installed and verified on your local op
     GROQ_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
     DEEPGRAM_API_KEY=...
     OPENWEATHER_API_KEY=...
-    JINA_API_KEY=jina_...
+    TINYFISH_API_KEY=tinyfish_...
     ```
 
 4.  **Verify the Stack**:
@@ -119,12 +119,12 @@ Our real-time layer operates over WebSockets (`ws` library).
 We design with **graceful degradation** in mind. A single API crash must never take down the radio.
 
 *   **Groq JSON Recovery Boundary**: If the Llama model fails to yield a valid JSON object or throws a `failed_generation` structure, use the recovery system in `src/claude.js` to parse bracket/brace coordinates or perform a secondary rapid formatting completion pass. Always supply a structural, functional fallback JSON object in case of complete API failure.
-*   **Jina AI Web Search Fallbacks**: If the web search times out or your Jina quota is exhausted, log the warning and fallback immediately to standard model knowledge.
+*   **Tinyfish AI Web Search Fallbacks**: If the web search times out or your Tinyfish quota is exhausted, log the warning and fallback immediately to standard model knowledge.
 *   **Weather API Outages**: If OpenWeatherMap is unreachable, default the local weather string to `"Clear, 22°C"` or `"Unknown"` and proceed with normal generation. Do not bubble up exceptions.
 
 ### 4.2. API and Network Call Rules
 
-*   **Timeouts**: Never initiate a network fetch without a configured timeout. For Axios, keep standard external lookups (like Jina search) capped at a `15000` ms (15s) timeout threshold to protect responsiveness.
+*   **Timeouts**: Never initiate a network fetch without a configured timeout. For Axios, keep standard external lookups (like Tinyfish search) capped at a `15000` ms (15s) timeout threshold to protect responsiveness.
 *   **Caching**: All speech generated via Deepgram TTS must be MD5 hashed and stored locally inside `public/tts/`. The janitor schedule in `server.js` automatically cleans up caches older than 3 minutes. Never increase this memory retention unnecessarily.
 
 ### 4.3. Naming Conventions & Code Style

@@ -17,7 +17,7 @@ This document serves as the absolute source of truth for the system's design, fl
 - [4. Zero-Storage Streaming Engine](#4-zero-storage-streaming-engine)
   - [4.1. Process Pipeline (yt-dlp ➡️ FFmpeg ➡️ Express)](#41-process-pipeline-yt-dlp-️-ffmpeg-️-express)
   - [4.2. Memory Management & Signal Handling](#42-memory-management--signal-handling)
-- [5. Cognitive Routing & Jina AI Web Search Tool](#5-cognitive-routing--jina-ai-web-search-tool)
+- [5. Cognitive Routing & Tinyfish AI Web Search Tool](#5-cognitive-routing--tinyfish-ai-web-search-tool)
   - [5.1. Multi-Turn Tool Call & Context Re-injection](#51-multi-turn-tool-call--context-re-injection)
 - [6. The Resilience & Recovery Boundaries](#6-the-resilience--recovery-boundaries)
   - [6.1. Groq JSON Generation Fallbacks](#61-groq-json-generation-fallbacks)
@@ -185,13 +185,13 @@ Because processes are spawned on-the-fly per stream, process cleaning is critica
 
 ---
 
-## 5. Cognitive Routing & Jina AI Web Search Tool
+## 5. Cognitive Routing & Tinyfish AI Web Search Tool
 
 When user inputs are submitted via `/api/chat` or triggered through background automation, the system queries the Groq API (powered by `meta-llama/llama-4-scout-17b-16e-instruct`).
 
 ### 5.1. Multi-Turn Tool Call & Context Re-injection
 
-The cognitive engine is equipped with the `searchWeb` tool via **Jina AI s.jina.ai**. This allows it to check music facts on-the-fly.
+The cognitive engine is equipped with the `searchWeb` tool via **Tinyfish AI s.tinyfish.ai**. This allows it to check music facts on-the-fly.
 
 ```
 ┌───────────┐         User Question          ┌──────────┐
@@ -205,8 +205,8 @@ The cognitive engine is equipped with the `searchWeb` tool via **Jina AI s.jina.
 └─────┬─────┘                                     │
       │ tool_calls: [ { name: "searchWeb", query: "..." } ]
       ▼
-┌───────────┐      HTTP GET s.jina.ai        ┌──────────┐
-│  Server   ├───────────────────────────────►│ Jina AI  │
+┌───────────┐      HTTP GET s.tinyfish.ai        ┌──────────┐
+│  Server   ├───────────────────────────────►│ Tinyfish AI  │
 └─────┬─────┘                                └────┬─────┘
       │                                           │
       │ 4 clean search result objects             │
@@ -366,7 +366,7 @@ sequenceDiagram
 
 ### 9.2. Interactive Chat Curation, Tool Call, & Segue Sequence
 
-This sequence details the user-driven chat transaction, showing context compilation, Groq tool decisions via Jina AI, fuzzy verification checks, ducking, and transmission processes.
+This sequence details the user-driven chat transaction, showing context compilation, Groq tool decisions via Tinyfish AI, fuzzy verification checks, ducking, and transmission processes.
 
 ```mermaid
 sequenceDiagram
@@ -375,7 +375,7 @@ sequenceDiagram
     participant App as App.js (Client)
     participant Serv as Router.js & Claude.js (Backend)
     participant Groq as Llama Brain (Groq API)
-    participant Jina as Jina AI (s.jina.ai)
+    participant Tinyfish as Tinyfish AI (s.tinyfish.ai)
     participant Stream as Music Engine (yt-dlp)
     
     Listener->>App: Submits chat message ("Play Moroccan hip-hop Stormy")
@@ -384,8 +384,8 @@ sequenceDiagram
     Serv->>Groq: Generate DJ decision (System prompt + Tools + Context)
     alt Groq requires real-time search verification
         Groq-->>Serv: tool_calls (searchWeb: "Moroccan rapper Stormy new album")
-        Serv->>Jina: Fetch search query
-        Jina-->>Serv: Return search snippets
+        Serv->>Tinyfish: Fetch search query
+        Tinyfish-->>Serv: Return search snippets
         Serv->>Groq: Re-inject facts as 'role: tool'
     end
     Groq-->>Serv: Return JSON Output (say, play: ["Desperado - Stormy"], segue)

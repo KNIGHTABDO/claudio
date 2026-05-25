@@ -61,7 +61,7 @@ Instead of pre-downloading music tracks onto the server and wasting storage, Cla
 | Component | Technology | Role |
 | :--- | :--- | :--- |
 | **Language Model** | Groq (`Llama 4 Scout / 70B Versatile`) | System Brain & Playlist Curator |
-| **Web Research** | Jina AI Search API (`s.jina.ai`) | Real-time Discography & Artist Fact Verification |
+| **Web Research** | Tinyfish AI Search API (`s.tinyfish.ai`) | Real-time Discography & Artist Fact Verification |
 | **Voice Generator** | Deepgram Aura (`aura-asteria-en`) | Conversational DJ Speech Transmissions |
 | **Media Fetcher** | `yt-dlp` CLI | Live Streaming Cloud Source Audio Scraper |
 | **Transcoder** | `ffmpeg` CLI (libmp3lame) | Raw Audio to 128kbps MP3 Real-Time Encoder |
@@ -91,7 +91,7 @@ graph TD
     A[User Chat Input] --> B[Retrieve Local Context: Weather, Taste, History]
     B --> C[Compose Dynamic System Prompt]
     C --> D[Groq LLM Decision Step]
-    D -->|Request Music Info| E[Jina AI Search s.jina.ai]
+    D -->|Request Music Info| E[Tinyfish AI Search s.tinyfish.ai]
     E -->|Search Context Re-injected| D
     D -->|Final Answer JSON| F[Save Speech and Playlists to SQLite]
     F --> G[Generate Deepgram TTS]
@@ -148,8 +148,8 @@ Ensure the following dependencies are installed and properly registered in your 
     # Contextual Real-Time Weather (OpenWeather API)
     OPENWEATHER_API_KEY=your_weather_key_here
 
-    # Web Research Engine (Jina AI API)
-    JINA_API_KEY=jina_your_key_here
+    # Web Research Engine (Tinyfish AI API)
+    TINYFISH_API_KEY=tinyfish_your_key_here
     ```
 
 5.  **Ignite the Station**:
