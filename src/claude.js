@@ -90,6 +90,9 @@ You MUST output a strictly valid JSON object matching the following schema at al
   "reason": "Why these songs were picked (or conversational rationale)",
   "segue": "Transition text between songs (or empty string if just chatting)"
 }
+
+[ANTI-LOOPING DIRECTIVE]
+Do NOT copy or repeat your previous assistant responses from the conversation history. If the history shows that you have repeated the exact same speech or track curations in previous turns, you MUST immediately break the pattern by changing your response and acknowledging the user's latest message naturally (e.g., saying "You're welcome, sir!" or "Glad you enjoyed it, sir! Let me know if there's anything else you need."). If the user says "thanks", "thank you", or greets you, leave the "play" list strictly empty [] so the music continues playing without any interruption!
 `;
 
   // 4. Construct standard messages array with history
@@ -244,35 +247,50 @@ Raw Response: ${messageObj.content}`
         console.log('[DJ Brain] Attempting to recover from Groq failed_generation error...');
         let cleanGen = failedGen.trim();
         
-        // Find the boundaries of the JSON block (either array or object)
+        // Find where the JSON starts
         const firstBrace = cleanGen.indexOf('{');
         const firstBracket = cleanGen.indexOf('[');
-        const lastBrace = cleanGen.lastIndexOf('}');
-        const lastBracket = cleanGen.lastIndexOf(']');
-        
         let jsonStart = -1;
-        let jsonEnd = -1;
         
         if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
           jsonStart = firstBrace;
-          jsonEnd = lastBrace;
         } else if (firstBracket !== -1) {
           jsonStart = firstBracket;
-          jsonEnd = lastBracket;
         }
         
-        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-          const jsonSubStr = cleanGen.substring(jsonStart, jsonEnd + 1).trim();
-          const parsed = JSON.parse(jsonSubStr);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            console.log('[DJ Brain] Successfully recovered JSON array from failed_generation substring!');
-            return parsed[0];
-          } else if (parsed) {
-            console.log('[DJ Brain] Successfully recovered JSON object from failed_generation substring!');
-            return parsed;
+        if (jsonStart !== -1) {
+          // Extract from jsonStart to the very end of the string
+          let rawJsonBlock = cleanGen.substring(jsonStart).trim();
+          
+          try {
+            // 1. Try to parse directly (handles complete JSON block with conversational prefix)
+            const parsed = JSON.parse(rawJsonBlock);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              console.log('[DJ Brain] Successfully recovered JSON array from failed_generation!');
+              return parsed[0];
+            } else if (parsed) {
+              console.log('[DJ Brain] Successfully recovered JSON object from failed_generation!');
+              return parsed;
+            }
+          } catch (directErr) {
+            // 2. Direct parse failed (likely due to trailing truncation), try to auto-close and recover
+            console.log('[DJ Brain] Direct parsing failed. Attempting JSON auto-closing recovery...');
+            try {
+              const repairedJson = autoCloseJSON(rawJsonBlock);
+              const parsed = JSON.parse(repairedJson);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                console.log('[DJ Brain] Successfully recovered JSON array after auto-closing repairs!');
+                return parsed[0];
+              } else if (parsed) {
+                console.log('[DJ Brain] Successfully recovered JSON object after auto-closing repairs!');
+                return parsed;
+              }
+            } catch (repairErr) {
+              console.warn('[DJ Brain] JSON auto-closing repair failed:', repairErr.message);
+            }
           }
         } else {
-          console.warn('[DJ Brain] No JSON block structures found in failed_generation.');
+          console.warn('[DJ Brain] No JSON start structures found in failed_generation.');
         }
       } catch (recoveryErr) {
         console.warn('[DJ Brain] Failed to recover JSON from failed_generation:', recoveryErr.message);
@@ -288,6 +306,60 @@ Raw Response: ${messageObj.content}`
       segue: "Back to the hits."
     };
   }
+}
+
+// Helper to repair and auto-close truncated JSON strings
+function autoCloseJSON(str) {
+  let clean = str.trim();
+  if (clean.length === 0) return clean;
+  
+  let openBraces = 0;
+  let openBrackets = 0;
+  let inString = false;
+  let escape = false;
+  
+  for (let i = 0; i < clean.length; i++) {
+    const char = clean[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (char === '\\') {
+      escape = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (char === '{') openBraces++;
+      else if (char === '}') openBraces--;
+      else if (char === '[') openBrackets++;
+      else if (char === ']') openBrackets--;
+    }
+  }
+  
+  if (inString) {
+    clean += '"';
+  }
+  
+  clean = clean.trim();
+  if (clean.endsWith(',')) {
+    clean = clean.slice(0, -1).trim();
+  }
+  
+  while (openBrackets > 0) {
+    clean += ']';
+    openBrackets--;
+  }
+  
+  while (openBraces > 0) {
+    clean += '}';
+    openBraces--;
+  }
+  
+  return clean;
 }
 
 module.exports = { getDJResponse };

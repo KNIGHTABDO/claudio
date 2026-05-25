@@ -36,7 +36,13 @@ async function searchWeb(query) {
       return null;
     }
   } catch (error) {
-    console.error('[Jina Search] Search failed:', error.response?.data || error.message);
+    const errorData = error.response?.data;
+    console.error('[Jina Search] Search failed:', errorData || error.message);
+    
+    if (error.response?.status === 402 || errorData?.code === 402 || errorData?.name === 'InsufficientBalanceError' || error.message?.includes('402')) {
+      console.warn('[Jina Search] Jina AI balance exhausted. Informing LLM to proceed with static knowledge.');
+      return 'Web search is temporarily unavailable (Jina AI balance exhausted). Do NOT attempt to use the web search tool again. Instead, immediately proceed using your extensive, pre-trained internal knowledge of music history, songs, tracklists, and artists to reply to the user and curate the songs.';
+    }
     return null;
   }
 }
