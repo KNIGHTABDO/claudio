@@ -2,65 +2,67 @@ const { getDJResponse } = require('./claude');
 const { searchSong } = require('./music');
 const { generateSpeech } = require('./tts');
 const db = require('./db');
+const stationCtl = require('./station');
 
-async function handleIntent(userInput) {
-  // 1. Save user message
-  if (userInput) {
+async function handleIntent(userInput, options = {}) {
+  if (userInput && !options.silentUser) {
     await db.saveMessage('user', userInput);
   }
 
-  // 2. Get Brain Decision (Claude)
-  const aiDecision = await getDJResponse(userInput);
-  
-  // FORCE INTENT OVERRIDE:
-  // For manual user chat messages, we default to 'interrupt' so Claudio immediately pivots 
-  // and starts playing the new tracks, unless the user explicitly asks to queue/append it.
+  const aiDecision = await getDJResponse(userInput, options);
+
   if (userInput) {
     const appendKeywords = ['queue', 'add to queue', 'append', 'later', 'next in line', 'add this'];
     const hasAppendRequest = appendKeywords.some(k => userInput.toLowerCase().includes(k));
-    if (hasAppendRequest) {
-      aiDecision.intent = 'append';
-      console.log('!!! BACKEND OVERRIDE: Forcing Append intent based on user request !!!');
-    } else {
-      aiDecision.intent = 'interrupt';
-      console.log('!!! BACKEND OVERRIDE: Forcing Interrupt intent for manual user chat !!!');
-    }
+    aiDecision.intent = options.forceIntent || (hasAppendRequest ? 'append' : 'interrupt');
   }
-  
-  console.log('DJ Decision:', aiDecision.reason);
 
-
-  // 3. Save DJ message
-  await db.saveMessage('claudio', aiDecision.say);
-
-  // 4. Generate TTS for DJ speech
   let ttsUrl = null;
-  try {
-    ttsUrl = await generateSpeech(aiDecision.say);
-  } catch (err) {
-    console.error('TTS Generation failed:', err);
+  if (!options.silentDj) {
+    try {
+      ttsUrl = await generateSpeech(aiDecision.say);
+    } catch (err) {
+      console.error('TTS generation failed:', err.message);
+    }
   }
 
-  // 5. Resolve songs to playable tracks
-  const tracksToQueue = [];
-  for (let songQuery of aiDecision.play) {
-    const track = await searchSong(songQuery);
-    if (track) {
-      tracksToQueue.push(track);
-      // Save to play history
-      await db.savePlay(track.name, track.artist);
+  const tracks = [];
+  const playList = Array.isArray(aiDecision.play) ? aiDecision.play : [];
+  for (const songQuery of playList) {
+    try {
+      const track = await searchSong(songQuery);
+      if (track) {
+        tracks.push(track);
+        await db.savePlay(track.name, track.artist);
+      }
+    } catch (err) {
+      console.error(`Track resolution failed for "${songQuery}":`, err.message);
     }
+  }
+
+  const payload = {
+    tracks,
+    ttsUrl,
+    intent: aiDecision.intent || 'append',
+    reason: aiDecision.reason || '',
+    segue: aiDecision.segue || ''
+  };
+
+  if (!options.silentDj) {
+    await db.saveMessage('claudio', aiDecision.say, payload);
+  }
+
+  if (tracks.length > 0) {
+    if (payload.intent === 'interrupt') stationCtl.replaceQueue(tracks);
+    else stationCtl.appendTracks(tracks);
   }
 
   return {
     speech: aiDecision.say,
-    ttsUrl: ttsUrl,
-    queue: tracksToQueue,
-    intent: aiDecision.intent || 'append',
-    metadata: {
-      reason: aiDecision.reason,
-      segue: aiDecision.segue
-    }
+    ttsUrl,
+    tracks,
+    intent: payload.intent,
+    metadata: { reason: payload.reason, segue: payload.segue }
   };
 }
 

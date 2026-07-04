@@ -1,0 +1,1769 @@
+╭─── Claude Code v2.1.201 ─────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│               Welcome back hello cat!              │ started                 │
+│                                                    │ Run /init to create a … │
+│                       ▐▛███▜▌                      │ ─────────────────────── │
+│                      ▝▜█████▛▘                     │ What's new              │
+│                        ▘▘ ▝▝                       │ Claude Sonnet 5 sessio… │
+│   Fable 5 · Claude Pro · kikicarol50@gmail.com's   │ Changed `AskUserQuesti… │
+│   Organization                                     │ Changed the "default" … │
+│              ~\Desktop\claudio\public              │ /release-notes for more │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+ ▎ Fable 5 is back.
+ ▎ Until July 7, you can use up to 50% of your plan's weekly usage limit on Fable 5. If you hit your limit, you can continue on Fable 5 with usage credits. Fable 5 draws down usage faster than Opus 4.8. Learn more (https://support.claude.com/en/articles/15424964-claude-fable-5-promotional-access)
+
+❯ /plan                                                                         
+  ⎿  Enabled plan mode
+
+❯ so i have been working on this project for a long time , but i still dont     
+  like it tbh , the idea is great but i didnt make it real as i wanted it to be 
+  , the initial idea came from                                                  
+  c:\Users\hiba\Desktop\claudio\idea\6046394538168880929.jpg which              
+  https://mmguo.dev/ made its here as demo https://mmguo.dev/claudio-fm/ i      
+  wanted to be like here exactly , look at this images from her project (look   
+  at all images in images-ref directory                                         
+  c:\Users\hiba\Desktop\claudio\images-ref , i want you to remake it in both    
+  front and backend to make it aloooooot better and insanely designed u have    
+  the refs u can think and make it even better than hers , but please dont talk 
+  to me at all i need you to just code and keep coding till u are done that     
+  should be on the plan as number one rule , no talking at all even while       
+  coding dont write any comments just code                                      
+
+  Searched for 2 patterns, read 5 files (ctrl+o to expand)
+
+● Explore(Explore claudio codebase)
+  ⎿  Done (19 tool uses · 65.2k tokens · 1m 30s)
+  (ctrl+o to expand)
+
+● Plan(Design Claudio remake plan)
+  ⎿  Done (5 tool uses · 27.0k tokens · 2m 3s)
+  (ctrl+o to expand)
+
+● Updated plan
+  ⎿  /plan to preview
+
+● User approved Claude's plan
+  ⎿  Plan saved to: ~\.claude\plans\so-i-have-been-lively-valley.md · /plan to 
+     edit
+     Claudio Full Remake — Front + Backend
+
+     Rule #1
+
+     Silent execution. No chatting with user during implementation, no progress
+     narration beyond what harness requires, ZERO code comments anywhere in
+     shipped code. Just code until done.
+
+     Context
+
+     User has working AI-DJ app (Express + ws, Groq brain, Deepgram TTS,
+     yt-dlp/ffmpeg YouTube streaming, sqlite) but dislikes execution. Wants
+     remake matching mmguo.dev/claudio-fm reference (dot-matrix retro
+     radio-station aesthetic, screenshots in images-ref/, architecture in
+     idea/), and pushed further: "insanely designed", better than reference.
+     Keep provider stack (Groq, Deepgram, Tinyfish, OpenWeather, yt-dlp), keep
+     no-build vanilla stack, drop Tailwind CDN for handcrafted CSS.
+
+     Backend
+
+     1. DB migrations — src/db.js (idempotent at startup)
+
+     - messages + payload TEXT column (JSON: resolved tracks, ttsUrl, metadata)
+     so chat history re-renders track cards after reload.
+     - New station_state single-row table: queue JSON, current_index, position —
+     restart resume.
+     - New helpers: getLikes, getStats (play count, distinct genres etc.),
+     saveStationState/loadStationState, payload-aware
+     saveMessage/getRecentMessages.
+
+     2. Server-authoritative queue — new src/station.js
+
+     Singleton {queue, currentIndex, status, startedAt}; methods replaceQueue / 
+     appendTracks / playIndex / next / prev / stop / onTrackEnded / snapshot.
+     Every mutation persists (station_state) + broadcasts. Hydrates on boot.
+     Fallback end-of-track timer (duration + grace) so dead client can't stall
+     station.
+
+     3. WS protocol redesign — server.js
+
+     - Server→client: STATE (full snapshot on connect: station + chat history w/
+     payloads), NOW_PLAYING, QUEUE_UPDATE, DJ_MESSAGE, USER_MESSAGE, LIKE_ACK,
+     ERROR.
+     - Client→server: CHAT, PLAY_INDEX, NEXT, PREV, STOP, PROGRESS (10s ticks),
+     TRACK_ENDED. Heartbeat ping/pong, per-socket try/catch.
+     - REST: keep GET /api/stream?v= untouched; add GET /api/state, GET 
+     /api/profile (persona + taste.md genre pills + db stats + live listener
+     count), GET /api/likes; keep POST /api/like; /api/history returns payloads.
+     POST /api/chat retained but chat flows primarily over WS.
+
+     4. src/router.js refactor
+
+     Keep Groq→TTS→yt-search flow. Per-track try/catch during resolution; mutate
+     station instead of returning client-owned queue; persist message payload.
+     Scheduler (src/scheduler.js) routines flow through same DJ_MESSAGE path
+     (drop DJ_ROUTINE).
+
+     5. Cleanup
+
+     Remove unused NCM_API_URL/JINA_API_KEY references from .env.example; keep
+     src/claude.js Groq logic but tidy (strip existing comments too — whole
+     codebase must end comment-free).
+
+     Frontend rebuild — public/
+
+     Files: index.html, styles.css, ES modules main.js, ws.js (reconnect +
+     backoff), state.js (pubsub store), audio.js (music + TTS elements, ducking
+     to 20%, progress), clock.js, ui/player.js, ui/queue.js, ui/chat.js,
+     ui/profile.js, ui/theme.js. Delete old app.js, drop Tailwind CDN.
+
+     Design system
+
+     - CSS custom properties, data-theme="dark|light" on root, localStorage +
+     prefers-color-scheme. Accent #22c55e, near-black bg, dotted-grid background
+     layer, Space Mono + pixel display type, prefers-reduced-motion respected.
+
+     Screens (per images-ref/ reference, then polish beyond)
+
+     1. Header: "Claudio" pixel wordmark, DARK/LIGHT segmented toggle, profile
+     button.
+     2. Hero: huge dot-matrix clock rendered on canvas (5×7 dot glyphs, per-dot
+     alpha tween on digit change, blinking colon, DPR-aware), day/date, ● ON 
+     AIR.
+     3. Player bar: animated EQ bars (freeze on pause), Title - Artist, PLAYING
+     status, prev/pause/next/stop, LIST/FAV/HIDE, VOL slider, mono progress with
+     times.
+     4. QUEUE panel: QUEUE / N TRACKS, numbered rows, artist right-aligned,
+     current row green + ▶, click-to-play.
+     5. Chat: ● Claudio LIVE bar, timestamps, DJ avatar messages, inline
+     clickable track cards (active = green border + ★), user messages, input
+     "Say something to the DJ..." with mic (browser SpeechRecognition,
+     feature-detected) + send.
+     6. Profile modal: avatar, pixel name, tagline, bio, stats ON AIR 24/7 /
+     GENRES ∞ / LISTENER n, genre pills from taste.md, animated dot-wave.
+     7. Footer status bar: CLAUDIO FM … CONNECTED bound to WS state.
+     8. Boot screen replaces ignition overlay: dot-matrix PRESS TO START
+     (autoplay unlock), letter-scramble on track change, chat slide-ins.
+
+     Build order
+
+     1. db.js migrations + station.js.
+     2. server.js + router.js + scheduler.js refactor; verify via curl + WS
+     smoke.
+     3. Static skeleton + theme system.
+     4. Canvas clock.
+     5. Audio wiring end-to-end: boot → chat → TTS duck → stream → auto-advance.
+     6. Track cards, likes, mic.
+     7. Profile, footer, scheduler path.
+     8. Polish, error states.
+     9. Final sweep: grep for // and /* comments — must be zero; strip
+     stragglers.
+
+     Verification
+
+     - node server.js, open localhost:8080.
+     - Chat "play some jazz" → DJ_MESSAGE with cards → QUEUE_UPDATE →
+     NOW_PLAYING → audio streams via /api/stream.
+     - Skip/prev/stop, click queue row, click chat card, like, mic (Chrome),
+     theme toggle both themes, reload mid-song resumes, kill server → client
+     reconnects, temp cron * * * * * fires routine.
+
+     Detailed agent plan: C:\Users\hiba\.claude\plans\so-i-have-been-lively-vall
+     ey-agent-ae01707bc15a68238.md
+
+  Read 10 files (ctrl+o to expand)
+
+● Write(~\Desktop\claudio\src\db.js)
+  ⎿  Added 72 lines, removed 47 lines
+        4  const dbPath = path.resolve(__dirname, '../state.db');
+        5  const db = new sqlite3.Database(dbPath);
+        6  
+        7 -db.serialize(() => {                                          
+        8 -  // Play history                                             
+        9 -  db.run(`CREATE TABLE IF NOT EXISTS plays (                  
+        7 +const run = (sql, params = []) => new Promise((resolve, reject
+          +) => {                                                        
+        8 +  db.run(sql, params, function (err) {                        
+        9 +    if (err) reject(err);                                     
+       10 +    else resolve(this);                                       
+       11 +  });                                                         
+       12 +});                                                           
+       13 +                                                              
+       14 +const all = (sql, params = []) => new Promise((resolve, reject
+          +) => {                                                        
+       15 +  db.all(sql, params, (err, rows) => {                        
+       16 +    if (err) reject(err);                                     
+       17 +    else resolve(rows);                                       
+       18 +  });                                                         
+       19 +});                                                           
+       20 +                                                              
+       21 +const get = (sql, params = []) => new Promise((resolve, reject
+          +) => {                                                        
+       22 +  db.get(sql, params, (err, row) => {                         
+       23 +    if (err) reject(err);                                     
+       24 +    else resolve(row);                                        
+       25 +  });                                                         
+       26 +});                                                           
+       27 +                                                              
+       28 +const ready = (async () => {                                  
+       29 +  await run(`CREATE TABLE IF NOT EXISTS plays (               
+       30      id INTEGER PRIMARY KEY AUTOINCREMENT,
+       31      song_name TEXT,
+       32      artist TEXT,
+       33      played_at DATETIME DEFAULT CURRENT_TIMESTAMP
+       34    )`);
+       15 -                                                              
+       16 -  // Chat messages                                            
+       17 -  db.run(`CREATE TABLE IF NOT EXISTS messages (               
+       35 +  await run(`CREATE TABLE IF NOT EXISTS messages (            
+       36      id INTEGER PRIMARY KEY AUTOINCREMENT,
+       37      role TEXT,
+       38      content TEXT,
+       39      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+       40    )`);
+       23 -                                                              
+       24 -  // User Tastes (Likes)                                      
+       25 -  db.run(`CREATE TABLE IF NOT EXISTS likes (                  
+       41 +  await run(`CREATE TABLE IF NOT EXISTS likes (               
+       42      id INTEGER PRIMARY KEY AUTOINCREMENT,
+       43      song_name TEXT,
+       44      artist TEXT,
+       45      liked_at DATETIME DEFAULT CURRENT_TIMESTAMP
+       46    )`);
+       31 -});                                                           
+       47 +  await run(`CREATE TABLE IF NOT EXISTS station_state (       
+       48 +    id INTEGER PRIMARY KEY CHECK (id = 1),                    
+       49 +    queue TEXT,                                               
+       50 +    current_index INTEGER,                                    
+       51 +    position REAL,                                            
+       52 +    status TEXT,                                              
+       53 +    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP             
+       54 +  )`);                                                        
+       55 +  const cols = await all(`PRAGMA table_info(messages)`);      
+       56 +  if (!cols.some(c => c.name === 'payload')) {                
+       57 +    await run(`ALTER TABLE messages ADD COLUMN payload TEXT`);
+       58 +  }                                                           
+       59 +})();                                                         
+       60  
+       61  module.exports = {
+       62    db,
+       35 -  savePlay: (song, artist) => {                               
+       36 -    return new Promise((resolve, reject) => {                 
+       37 -      db.run('INSERT INTO plays (song_name, artist) VALUES (?,
+          - ?)', [song, artist], function(err) {                         
+       38 -        if (err) reject(err);                                 
+       39 -        else resolve(this.lastID);                            
+       40 -      });                                                     
+       63 +  ready,                                                      
+       64 +  savePlay: (song, artist) => run('INSERT INTO plays (song_nam
+          +e, artist) VALUES (?, ?)', [song, artist]),                   
+       65 +  saveMessage: (role, content, payload = null) =>             
+       66 +    run('INSERT INTO messages (role, content, payload) VALUES 
+          +(?, ?, ?)', [role, content, payload ? JSON.stringify(payload) 
+          +: null]),                                                     
+       67 +  saveLike: (song, artist) => run('INSERT INTO likes (song_nam
+          +e, artist) VALUES (?, ?)', [song, artist]),                   
+       68 +  getLikes: (limit = 50) => all('SELECT * FROM likes ORDER BY 
+          +liked_at DESC LIMIT ?', [limit]),                             
+       69 +  getRecentPlays: (limit = 10) => all('SELECT * FROM plays ORD
+          +ER BY played_at DESC LIMIT ?', [limit]),                      
+       70 +  getRecentMessages: async (limit = 10) => {                  
+       71 +    const rows = await all('SELECT * FROM messages ORDER BY id
+          + DESC LIMIT ?', [limit]);                                     
+       72 +    return rows.reverse().map(r => {                          
+       73 +      let payload = null;                                     
+       74 +      if (r.payload) {                                        
+       75 +        try { payload = JSON.parse(r.payload); } catch {}     
+       76 +      }                                                       
+       77 +      return { ...r, payload };                               
+       78      });
+       79    },
+       43 -  saveMessage: (role, content) => {                           
+       44 -    return new Promise((resolve, reject) => {                 
+       45 -      db.run('INSERT INTO messages (role, content) VALUES (?, 
+          -?)', [role, content], function(err) {                         
+       46 -        if (err) reject(err);                                 
+       47 -        else resolve(this.lastID);                            
+       48 -      });                                                     
+       49 -    });                                                       
+       80 +  getStats: async () => {                                     
+       81 +    const plays = await get('SELECT COUNT(*) AS n FROM plays')
+          +;                                                             
+       82 +    const likes = await get('SELECT COUNT(*) AS n FROM likes')
+          +;                                                             
+       83 +    const artists = await get('SELECT COUNT(DISTINCT artist) A
+          +S n FROM plays');                                             
+       84 +    return { plays: plays.n, likes: likes.n, artists: artists.
+          +n };                                                          
+       85    },
+       51 -  saveLike: (song, artist) => {                               
+       52 -    return new Promise((resolve, reject) => {                 
+       53 -      db.run('INSERT INTO likes (song_name, artist) VALUES (?,
+          - ?)', [song, artist], function(err) {                         
+       54 -        if (err) reject(err);                                 
+       55 -        else resolve(this.lastID);                            
+       56 -      });                                                     
+       57 -    });                                                       
+       58 -  },                                                          
+       59 -  getRecentPlays: (limit = 10) => {                           
+       60 -    return new Promise((resolve, reject) => {                 
+       61 -      db.all('SELECT * FROM plays ORDER BY played_at DESC LIMI
+          -T ?', [limit], (err, rows) => {                               
+       62 -        if (err) reject(err);                                 
+       63 -        else resolve(rows);                                   
+       64 -      });                                                     
+       65 -    });                                                       
+       66 -  },                                                          
+       67 -  getRecentMessages: (limit = 10) => {                        
+       68 -    return new Promise((resolve, reject) => {                 
+       69 -      db.all('SELECT * FROM messages ORDER BY id DESC LIMIT ?'
+          -, [limit], (err, rows) => {                                   
+       70 -        if (err) reject(err);                                 
+       71 -        else resolve(rows.reverse()); // Chronological order  
+       72 -      });                                                     
+       73 -    });                                                       
+       86 +  saveStationState: (queue, currentIndex, position, status) =>
+       87 +    run(                                                      
+       88 +      `INSERT INTO station_state (id, queue, current_index, po
+          +sition, status, updated_at)                                   
+       89 +       VALUES (1, ?, ?, ?, ?, CURRENT_TIMESTAMP)              
+       90 +       ON CONFLICT(id) DO UPDATE SET queue=excluded.queue, cur
+          +rent_index=excluded.current_index,                            
+       91 +       position=excluded.position, status=excluded.status, upd
+          +ated_at=CURRENT_TIMESTAMP`,                                   
+       92 +      [JSON.stringify(queue), currentIndex, position, status] 
+       93 +    ),                                                        
+       94 +  loadStationState: async () => {                             
+       95 +    const row = await get('SELECT * FROM station_state WHERE i
+          +d = 1');                                                      
+       96 +    if (!row) return null;                                    
+       97 +    let queue = [];                                           
+       98 +    try { queue = JSON.parse(row.queue) || []; } catch {}     
+       99 +    return { queue, currentIndex: row.current_index, position:
+          + row.position, status: row.status };                          
+      100    }
+      101  };
+       76 -                                                              
+
+● Write(~\Desktop\claudio\src\station.js)
+  ⎿  Wrote 149 lines to ..\src\station.js
+      1 const db = require('./db');
+      2 
+      3 const station = {
+      4   queue: [],
+      5   currentIndex: -1,
+      6   position: 0,
+      7   status: 'idle',
+      8   startedAt: null
+      9 };
+     … +143 lines (ctrl+o to expand)
+
+● Write(~\Desktop\claudio\src\router.js)
+  ⎿  Added 34 lines, removed 36 lines
+       2  const { searchSong } = require('./music');
+       3  const { generateSpeech } = require('./tts');
+       4  const db = require('./db');
+       5 +const stationCtl = require('./station');                       
+       6  
+       7  async function handleIntent(userInput) {
+       7 -  // 1. Save user message                                      
+       8    if (userInput) {
+       9      await db.saveMessage('user', userInput);
+      10    }
+      11  
+      12 -  // 2. Get Brain Decision (Claude)                            
+      12    const aiDecision = await getDJResponse(userInput);
+      14 -                                                               
+      15 -  // FORCE INTENT OVERRIDE:                                    
+      16 -  // For manual user chat messages, we default to 'interrupt' s
+         -o Claudio immediately pivots                                   
+      17 -  // and starts playing the new tracks, unless the user explici
+         -tly asks to queue/append it.                                   
+      13 +                                                               
+      14    if (userInput) {
+      15      const appendKeywords = ['queue', 'add to queue', 'append', 
+          'later', 'next in line', 'add this'];
+      16      const hasAppendRequest = appendKeywords.some(k => userInput
+          .toLowerCase().includes(k));
+      21 -    if (hasAppendRequest) {                                    
+      22 -      aiDecision.intent = 'append';                            
+      23 -      console.log('!!! BACKEND OVERRIDE: Forcing Append intent 
+         -based on user request !!!');                                   
+      24 -    } else {                                                   
+      25 -      aiDecision.intent = 'interrupt';                         
+      26 -      console.log('!!! BACKEND OVERRIDE: Forcing Interrupt inte
+         -nt for manual user chat !!!');                                 
+      27 -    }                                                          
+      17 +    aiDecision.intent = hasAppendRequest ? 'append' : 'interrup
+         +t';                                                            
+      18    }
+      29 -                                                               
+      30 -  console.log('DJ Decision:', aiDecision.reason);              
+      19  
+      32 -                                                               
+      33 -  // 3. Save DJ message                                        
+      34 -  await db.saveMessage('claudio', aiDecision.say);             
+      35 -                                                               
+      36 -  // 4. Generate TTS for DJ speech                             
+      20    let ttsUrl = null;
+      21    try {
+      22      ttsUrl = await generateSpeech(aiDecision.say);
+      23    } catch (err) {
+      41 -    console.error('TTS Generation failed:', err);              
+      24 +    console.error('TTS generation failed:', err.message);      
+      25    }
+      26  
+      44 -  // 5. Resolve songs to playable tracks                       
+      45 -  const tracksToQueue = [];                                    
+      46 -  for (let songQuery of aiDecision.play) {                     
+      47 -    const track = await searchSong(songQuery);                 
+      48 -    if (track) {                                               
+      49 -      tracksToQueue.push(track);                               
+      50 -      // Save to play history                                  
+      51 -      await db.savePlay(track.name, track.artist);             
+      27 +  const tracks = [];                                           
+      28 +  const playList = Array.isArray(aiDecision.play) ? aiDecision.
+         +play : [];                                                     
+      29 +  for (const songQuery of playList) {                          
+      30 +    try {                                                      
+      31 +      const track = await searchSong(songQuery);               
+      32 +      if (track) {                                             
+      33 +        tracks.push(track);                                    
+      34 +        await db.savePlay(track.name, track.artist);           
+      35 +      }                                                        
+      36 +    } catch (err) {                                            
+      37 +      console.error(`Track resolution failed for "${songQuery}"
+         +:`, err.message);                                              
+      38      }
+      39    }
+      40  
+      41 +  const payload = {                                            
+      42 +    tracks,                                                    
+      43 +    ttsUrl,                                                    
+      44 +    intent: aiDecision.intent || 'append',                     
+      45 +    reason: aiDecision.reason || '',                           
+      46 +    segue: aiDecision.segue || ''                              
+      47 +  };                                                           
+      48 +                                                               
+      49 +  await db.saveMessage('claudio', aiDecision.say, payload);    
+      50 +                                                               
+      51 +  if (tracks.length > 0) {                                     
+      52 +    if (payload.intent === 'interrupt') stationCtl.replaceQueue
+         +(tracks);                                                      
+      53 +    else stationCtl.appendTracks(tracks);                      
+      54 +  }                                                            
+      55 +                                                               
+      56    return {
+      57      speech: aiDecision.say,
+      57 -    ttsUrl: ttsUrl,                                            
+      58 -    queue: tracksToQueue,                                      
+      59 -    intent: aiDecision.intent || 'append',                     
+      60 -    metadata: {                                                
+      61 -      reason: aiDecision.reason,                               
+      62 -      segue: aiDecision.segue                                  
+      63 -    }                                                          
+      58 +    ttsUrl,                                                    
+      59 +    tracks,                                                    
+      60 +    intent: payload.intent,                                    
+      61 +    metadata: { reason: payload.reason, segue: payload.segue } 
+      62    };
+      63  }
+      64  
+
+● Write(~\Desktop\claudio\src\scheduler.js)
+  ⎿  Added 12 lines, removed 8 lines
+       2  const { handleIntent } = require('./router');
+       3  
+       4  function initScheduler(broadcast) {
+       5 -  // 07:00 Morning Planning                                    
+       5    cron.schedule('0 7 * * *', async () => {
+       7 -    console.log('Running 07:00 Morning Routine...');           
+       8 -    const result = await handleIntent('It is 7 AM. Plan the sou
+         -nd for today based on my routines and weather.');              
+       9 -    broadcast({ type: 'DJ_ROUTINE', ...result });              
+       6 +    try {                                                      
+       7 +      const result = await handleIntent('It is 7 AM. Plan the s
+         +ound for today based on my routines and weather.');            
+       8 +      broadcast({ type: 'DJ_MESSAGE', ...result, timestamp: Dat
+         +e.now() });                                                    
+       9 +    } catch (err) {                                            
+      10 +      console.error('Morning routine failed:', err.message);   
+      11 +    }                                                          
+      12    });
+      13  
+      12 -  // Hourly Check-ins                                          
+      14    cron.schedule('0 * * * *', async () => {
+      14 -    console.log('Running Hourly Context Check...');            
+      15 -    const result = await handleIntent('Hourly update. Check the
+         - environment and adjust the vibe if needed.');                 
+      16 -    broadcast({ type: 'DJ_ROUTINE', ...result });              
+      15 +    try {                                                      
+      16 +      const result = await handleIntent('Hourly update. Check t
+         +he environment and adjust the vibe if needed.');               
+      17 +      broadcast({ type: 'DJ_MESSAGE', ...result, timestamp: Dat
+         +e.now() });                                                    
+      18 +    } catch (err) {                                            
+      19 +      console.error('Hourly check-in failed:', err.message);   
+      20 +    }                                                          
+      21    });
+      22  
+      23    console.log('Scheduler initialized.');
+
+  Read 1 file (ctrl+o to expand)
+
+● Write(~\Desktop\claudio\server.js)
+  ⎿  Added 196 lines, removed 88 lines
+        3  const WebSocket = require('ws');
+        4  const path = require('path');
+        5  const fs = require('fs');
+        6 +const crypto = require('crypto');                             
+        7  const { spawn } = require('child_process');
+        7 -const { pipeline } = require('stream');                       
+        8  const { handleIntent } = require('./src/router');
+        9  const { initScheduler } = require('./src/scheduler');
+       10  const { cleanupTTS } = require('./src/tts');
+       11 +const db = require('./src/db');                               
+       12 +const stationCtl = require('./src/station');                  
+       13  require('dotenv').config();
+       14  
+       13 -                                                              
+       15  const app = express();
+       16  app.use(express.json({ limit: '32kb' }));
+       17  app.use(express.static(path.join(__dirname, 'public')));
+       18  
+       19  const server = http.createServer(app);
+       19 -const wss = new WebSocket.Server({ server, path: '/stream' });
+       20 +const wss = new WebSocket.Server({ server, path: '/ws' });    
+       21  
+       21 -// WebSocket Logic                                            
+       22 -wss.on('connection', (ws) => {                                
+       23 -  console.log('New listener connected.');                     
+       24 -                                                              
+       25 -  ws.on('message', async (msgStr) => {                        
+       22 +function broadcast(data) {                                    
+       23 +  const msg = JSON.stringify(data);                           
+       24 +  wss.clients.forEach(client => {                             
+       25 +    if (client.readyState === WebSocket.OPEN) client.send(msg)
+          +;                                                             
+       26 +  });                                                         
+       27 +}                                                             
+       28 +                                                              
+       29 +stationCtl.setBroadcast(broadcast);                           
+       30 +                                                              
+       31 +function attachTts(messages) {                                
+       32 +  return messages.map(msg => {                                
+       33 +    if (msg.role !== 'claudio') {                             
+       34 +      return { role: 'user', content: msg.content, createdAt: 
+          +msg.created_at };                                             
+       35 +    }                                                         
+       36 +    let ttsUrl = msg.payload?.ttsUrl || null;                 
+       37 +    if (!ttsUrl) {                                            
+       38 +      const cleanText = msg.content.replace(/\[.*?\]/g, '').tr
+          +im();                                                         
+       39 +      const hash = crypto.createHash('md5').update(cleanText).
+          +digest('hex');                                                
+       40 +      const file = path.join(__dirname, 'public/tts', `${hash}
+          +.mp3`);                                                       
+       41 +      if (fs.existsSync(file)) ttsUrl = `/tts/${hash}.mp3`;   
+       42 +    }                                                         
+       43 +    return {                                                  
+       44 +      role: 'claudio',                                        
+       45 +      content: msg.content,                                   
+       46 +      createdAt: msg.created_at,                              
+       47 +      ttsUrl,                                                 
+       48 +      tracks: msg.payload?.tracks || [],                      
+       49 +      intent: msg.payload?.intent || null                     
+       50 +    };                                                        
+       51 +  });                                                         
+       52 +}                                                             
+       53 +                                                              
+       54 +async function fullState() {                                  
+       55 +  const messages = await db.getRecentMessages(30);            
+       56 +  return {                                                    
+       57 +    type: 'STATE',                                            
+       58 +    station: stationCtl.snapshot(),                           
+       59 +    history: attachTts(messages),                             
+       60 +    listeners: wss.clients.size                               
+       61 +  };                                                          
+       62 +}                                                             
+       63 +                                                              
+       64 +let curationLock = false;                                     
+       65 +                                                              
+       66 +async function runChat(text, ws) {                            
+       67 +  if (curationLock) {                                         
+       68 +    ws.send(JSON.stringify({ type: 'ERROR', message: 'Claudio 
+          +is already thinking. One request at a time.' }));             
+       69 +    return;                                                   
+       70 +  }                                                           
+       71 +  curationLock = true;                                        
+       72 +  try {                                                       
+       73 +    broadcast({ type: 'USER_MESSAGE', content: text, timestamp
+          +: Date.now() });                                              
+       74 +    broadcast({ type: 'DJ_THINKING' });                       
+       75 +    const result = await handleIntent(text);                  
+       76 +    broadcast({ type: 'DJ_MESSAGE', ...result, timestamp: Date
+          +.now() });                                                    
+       77 +  } catch (err) {                                             
+       78 +    console.error('Chat handling failed:', err);              
+       79 +    broadcast({ type: 'ERROR', message: 'Transmission glitch. 
+          +Try again.' });                                               
+       80 +  } finally {                                                 
+       81 +    curationLock = false;                                     
+       82 +  }                                                           
+       83 +}                                                             
+       84 +                                                              
+       85 +wss.on('connection', async (ws) => {                          
+       86 +  ws.isAlive = true;                                          
+       87 +  ws.on('pong', () => { ws.isAlive = true; });                
+       88 +                                                              
+       89 +  try {                                                       
+       90 +    ws.send(JSON.stringify(await fullState()));               
+       91 +  } catch (err) {                                             
+       92 +    console.error('State snapshot failed:', err);             
+       93 +  }                                                           
+       94 +                                                              
+       95 +  ws.on('message', async (raw) => {                           
+       96 +    let msg;                                                  
+       97      try {
+       27 -      const msg = JSON.parse(msgStr);                         
+       28 -      if (msg.type === 'INIT_SESSION') {                      
+       29 -        if (!msg.resume) {                                    
+       30 -          console.log('[Session] New session init requested. T
+          -riggering startup curation...');                              
+       31 -          const result = await handleIntent(null);            
+       32 -          ws.send(JSON.stringify({ type: 'DJ_ROUTINE', ...resu
+          -lt }));                                                       
+       33 -        } else {                                              
+       34 -          console.log('[Session] Resuming existing session. Sk
+          -ipping startup curation.');                                   
+       98 +      msg = JSON.parse(raw);                                  
+       99 +    } catch {                                                 
+      100 +      return;                                                 
+      101 +    }                                                         
+      102 +    try {                                                     
+      103 +      switch (msg.type) {                                     
+      104 +        case 'BOOT': {                                        
+      105 +          if (stationCtl.station.queue.length === 0 && !curati
+          +onLock) {                                                     
+      106 +            curationLock = true;                              
+      107 +            try {                                             
+      108 +              broadcast({ type: 'DJ_THINKING' });             
+      109 +              const result = await handleIntent(null);        
+      110 +              broadcast({ type: 'DJ_MESSAGE', ...result, times
+          +tamp: Date.now() });                                          
+      111 +            } finally {                                       
+      112 +              curationLock = false;                           
+      113 +            }                                                 
+      114 +          }                                                   
+      115 +          break;                                              
+      116          }
+      117 +        case 'CHAT': {                                        
+      118 +          const text = typeof msg.text === 'string' ? msg.text
+          +.trim() : '';                                                 
+      119 +          if (text.length === 0 || text.length > 600) return; 
+      120 +          await runChat(text, ws);                            
+      121 +          break;                                              
+      122 +        }                                                     
+      123 +        case 'PLAY_INDEX':                                    
+      124 +          if (Number.isInteger(msg.index)) stationCtl.playInde
+          +x(msg.index);                                                 
+      125 +          break;                                              
+      126 +        case 'NEXT':                                          
+      127 +          stationCtl.next();                                  
+      128 +          break;                                              
+      129 +        case 'PREV':                                          
+      130 +          stationCtl.prev();                                  
+      131 +          break;                                              
+      132 +        case 'STOP':                                          
+      133 +          stationCtl.stop();                                  
+      134 +          break;                                              
+      135 +        case 'PAUSE':                                         
+      136 +          stationCtl.setStatus('paused');                     
+      137 +          break;                                              
+      138 +        case 'RESUME':                                        
+      139 +          stationCtl.setStatus('playing');                    
+      140 +          break;                                              
+      141 +        case 'PROGRESS':                                      
+      142 +          if (typeof msg.position === 'number') stationCtl.set
+          +Progress(msg.position);                                       
+      143 +          break;                                              
+      144 +        case 'TRACK_ENDED':                                   
+      145 +          if (Number.isInteger(msg.index)) stationCtl.onTrackE
+          +nded(msg.index);                                              
+      146 +          break;                                              
+      147        }
+      148      } catch (err) {
+       38 -      console.error('[WebSocket Message Error]', err);        
+      149 +      console.error('WS message error:', err);                
+      150      }
+      151    });
+      152  });
+      153  
+       43 -function broadcast(data) {                                    
+       44 -  wss.clients.forEach(client => {                             
+       45 -    if (client.readyState === WebSocket.OPEN) {               
+       46 -      client.send(JSON.stringify(data));                      
+       47 -    }                                                         
+      154 +setInterval(() => {                                           
+      155 +  wss.clients.forEach(ws => {                                 
+      156 +    if (!ws.isAlive) return ws.terminate();                   
+      157 +    ws.isAlive = false;                                       
+      158 +    ws.ping();                                                
+      159    });
+       49 -}                                                             
+      160 +}, 30000);                                                    
+      161  
+       51 -                                                              
+       52 -// Initialize Scheduler & Janitor                             
+      162  initScheduler(broadcast);
+       54 -setInterval(cleanupTTS, 60 * 1000); // Run every minute       
+      163 +setInterval(cleanupTTS, 60 * 1000);                           
+      164  
+       56 -                                                              
+       57 -// API Endpoints                                              
+       58 -app.get('/api/status', (req, res) => {                        
+       59 -  res.json({ status: 'ON AIR', time: new Date().toLocaleTimeSt
+          -ring() });                                                    
+      165 +app.get('/api/state', async (req, res) => {                   
+      166 +  try {                                                       
+      167 +    res.json(await fullState());                              
+      168 +  } catch (err) {                                             
+      169 +    res.status(500).json({ error: 'Internal Server Error' }); 
+      170 +  }                                                           
+      171  });
+      172  
+      173  app.get('/api/history', async (req, res) => {
+      174    try {
+       64 -    const db = require('./src/db');                           
+       65 -    const crypto = require('crypto');                         
+       66 -    const messages = await db.getRecentMessages(15);          
+       67 -                                                              
+       68 -    const mappedMessages = messages.map(msg => {              
+       69 -      if (msg.role === 'claudio') {                           
+       70 -        const cleanText = msg.content.replace(/\[.*?\]/g, '').
+          -trim();                                                       
+       71 -        const hash = crypto.createHash('md5').update(cleanText
+          -).digest('hex');                                              
+       72 -        const ttsFileName = `${hash}.mp3`;                    
+       73 -        const ttsFilePath = path.join(__dirname, 'public/tts',
+          - ttsFileName);                                                
+       74 -        const hasTts = fs.existsSync(ttsFilePath);            
+       75 -        return {                                              
+       76 -          role: 'claudio',                                    
+       77 -          content: msg.content,                               
+       78 -          ttsUrl: hasTts ? `/tts/${ttsFileName}` : null       
+       79 -        };                                                    
+       80 -      }                                                       
+       81 -      return {                                                
+       82 -        role: 'user',                                         
+       83 -        content: msg.content                                  
+       84 -      };                                                      
+      175 +    const messages = await db.getRecentMessages(30);          
+      176 +    res.json({ success: true, history: attachTts(messages) });
+      177 +  } catch (err) {                                             
+      178 +    res.status(500).json({ error: 'Internal Server Error' }); 
+      179 +  }                                                           
+      180 +});                                                           
+      181 +                                                              
+      182 +app.get('/api/profile', async (req, res) => {                 
+      183 +  try {                                                       
+      184 +    let genres = [];                                          
+      185 +    try {                                                     
+      186 +      const taste = fs.readFileSync(path.join(__dirname, 'user
+          +/taste.md'), 'utf-8');                                        
+      187 +      const words = taste.match(/[A-Z][a-zA-Z-]+(?:\s[A-Z][a-z
+          +A-Z-]+)?/g) || [];                                            
+      188 +      const blacklist = new Set(['My', 'Music', 'Taste', 'I', 
+          +'Mornings', 'Deep', 'Work', 'Evening', 'Play', 'Favorites', 'C
+          +hinese', 'Deep Work', 'My Music']);                           
+      189 +      genres = [...new Set(words.filter(w => !blacklist.has(w)
+          +))].slice(0, 8);                                              
+      190 +    } catch {}                                                
+      191 +    const stats = await db.getStats();                        
+      192 +    res.json({                                                
+      193 +      name: 'Claudio',                                        
+      194 +      tagline: 'Your mood is my prompt.',                     
+      195 +      bio: ['Personal AI DJ, spinning taste.md', 'Your mood is
+          + my prompt.', 'I hate algorithm. I have taste.'],             
+      196 +      onAir: '24/7',                                          
+      197 +      genres,                                                 
+      198 +      listeners: wss.clients.size || 1,                       
+      199 +      stats                                                   
+      200      });
+       86 -                                                              
+       87 -    res.json({ success: true, history: mappedMessages });     
+      201    } catch (err) {
+       89 -    console.error('[API History Error]', err);                
+      202      res.status(500).json({ error: 'Internal Server Error' });
+      203    }
+      204  });
+      205  
+       94 -app.post('/api/chat', async (req, res) => {                   
+      206 +app.get('/api/likes', async (req, res) => {                   
+      207    try {
+       96 -    const { message } = req.body;                             
+       97 -    if (typeof message !== 'string' || message.trim().length =
+          -== 0) {                                                       
+       98 -      return res.status(400).json({ error: 'Message is require
+          -d' });                                                        
+       99 -    }                                                         
+      100 -    if (message.length > 600) {                               
+      101 -      return res.status(413).json({ error: 'Message is too lon
+          -g' });                                                        
+      102 -    }                                                         
+      103 -    const result = await handleIntent(message);               
+      104 -                                                              
+      105 -    // Broadcast the DJ response to all connected clients     
+      106 -    broadcast({ type: 'DJ_RESPONSE', ...result });            
+      107 -                                                              
+      108 -    res.json({ success: true, result });                      
+      208 +    res.json({ success: true, likes: await db.getLikes(50) });
+      209    } catch (err) {
+      110 -    console.error(err);                                       
+      210      res.status(500).json({ error: 'Internal Server Error' });
+      211    }
+      212  });
+     ...
+      220      if (song.length > 200 || artist.length > 200) {
+      221        return res.status(413).json({ error: 'Song or artist val
+           ue is too long' });
+      222      }
+      124 -    const db = require('./src/db');                           
+      223      await db.saveLike(song.trim(), artist.trim());
+      224 +    broadcast({ type: 'LIKE_ACK', song: song.trim(), artist: a
+          +rtist.trim() });                                              
+      225      res.json({ success: true });
+      226    } catch (err) {
+      128 -    console.error(err);                                       
+      227      res.status(500).json({ error: 'Internal Server Error' });
+      228    }
+      229  });
+      230  
+      231 +app.post('/api/chat', async (req, res) => {                   
+      232 +  try {                                                       
+      233 +    const { message } = req.body;                             
+      234 +    if (typeof message !== 'string' || message.trim().length =
+          +== 0) {                                                       
+      235 +      return res.status(400).json({ error: 'Message is require
+          +d' });                                                        
+      236 +    }                                                         
+      237 +    if (message.length > 600) {                               
+      238 +      return res.status(413).json({ error: 'Message is too lon
+          +g' });                                                        
+      239 +    }                                                         
+      240 +    const result = await handleIntent(message.trim());        
+      241 +    broadcast({ type: 'DJ_MESSAGE', ...result, timestamp: Date
+          +.now() });                                                    
+      242 +    res.json({ success: true, result });                      
+      243 +  } catch (err) {                                             
+      244 +    res.status(500).json({ error: 'Internal Server Error' }); 
+      245 +  }                                                           
+      246 +});                                                           
+      247  
+      134 -// Real-time Audio Streaming Endpoint                         
+      248  app.get('/api/stream', (req, res) => {
+      249    const videoId = req.query.v;
+      250    if (!videoId) return res.status(400).send('Missing video ID'
+           );
+     ...
+      252      return res.status(400).send('Invalid video ID');
+      253    }
+      254  
+      142 -  console.log(`[Stream] Starting stream for: ${videoId}`);    
+      255    const videoUrl = `https://www.youtube.com/watch?v=${videoId}
+           `;
+      144 -                                                              
+      145 -  // Use yt-dlp to extract best audio and pipe it to ffmpeg fo
+          -r mp3 conversion on the fly                                   
+      146 -  // This ensures maximum compatibility and zero disk usage.  
+      147 -  // Use absolute paths for production reliability on Ubuntu  
+      256    const YT_DLP_PATH = process.platform === 'win32' ? 'yt-dlp' 
+           : '/usr/local/bin/yt-dlp';
+      257    const FFMPEG_PATH = process.platform === 'win32' ? 'ffmpeg' 
+           : '/usr/bin/ffmpeg';
+      258  
+     ...
+      276    res.setHeader('Content-Type', 'audio/mpeg');
+      277    res.setHeader('Transfer-Encoding', 'chunked');
+      278  
+      171 -  // Safety: Handle stdin error to prevent EPIPE crash when pr
+          -ocesses are killed                                            
+      279    ffmpeg.stdin.on('error', (err) => {
+      173 -    if (err.code !== 'EPIPE') console.error('[ffmpeg-stdin Err
+          -or]', err);                                                   
+      280 +    if (err.code !== 'EPIPE') console.error('ffmpeg stdin erro
+          +r:', err);                                                    
+      281    });
+      282  
+      176 -  // Pipe the processes together                              
+      283    ytdlp.stdout.pipe(ffmpeg.stdin);
+      284    ffmpeg.stdout.pipe(res);
+      285  
+      180 -  // Handle cleanup when user disconnects or skips            
+      286    req.on('close', () => {
+      287      ytdlp.stdout.unpipe(ffmpeg.stdin);
+      288      ffmpeg.stdout.unpipe(res);
+     ...
+      291    });
+      292  
+      293    ytdlp.on('error', err => {
+      189 -    console.error('[yt-dlp Error]', err);                     
+      294 +    console.error('yt-dlp error:', err);                      
+      295      if (!res.headersSent) res.status(502).send('Audio extracto
+           r failed');
+      296    });
+      297    ffmpeg.on('error', err => {
+      193 -    console.error('[ffmpeg Error]', err);                     
+      298 +    console.error('ffmpeg error:', err);                      
+      299      if (!res.headersSent) res.status(502).send('Audio encoder 
+           failed');
+      300    });
+      301  });
+      302  
+      198 -                                                              
+      199 -                                                              
+      303  const PORT = process.env.PORT || 8080;
+      201 -server.listen(PORT, () => {                                   
+      202 -  console.log(`Claudio Server is ON AIR at http://localhost:${
+          -PORT}`);                                                      
+      203 -});                                                           
+      304 +                                                              
+      305 +(async () => {                                                
+      306 +  await db.ready;                                             
+      307 +  await stationCtl.hydrate();                                 
+      308 +  server.listen(PORT, () => {                                 
+      309 +    console.log(`Claudio Server is ON AIR at http://localhost:
+          +${PORT}`);                                                    
+      310 +  });                                                         
+      311 +})();                                                         
+
+● Write(~\Desktop\claudio\src\claude.js)
+  ⎿  Added 58 lines, removed 121 lines
+       1  const axios = require('axios');
+       2 -const fs = require('fs');                                      
+       3 -const path = require('path');                                  
+       2  const db = require('./db');
+       3  const { getContextData } = require('./context');
+       4  const { searchWeb } = require('./search');
+       5  require('dotenv').config();
+       6  
+       7 +const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completio
+         +ns';                                                           
+       8 +const GROQ_MODEL = () => process.env.GROQ_MODEL || 'meta-llama/
+         +llama-4-scout-17b-16e-instruct';                               
+       9 +const groqHeaders = () => ({                                   
+      10 +  'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,       
+      11 +  'Content-Type': 'application/json'                           
+      12 +});                                                            
+      13 +                                                               
+      14  const tools = [
+      15    {
+      16      type: 'function',
+      17      function: {
+      18        name: 'searchWeb',
+      14 -      description: 'Search the web using Tinyfish AI to researc
+         -h music, artist facts, new albums, release dates, tracklists, o
+         -r real-time cultural knowledge.',                              
+      19 +      description: 'Search the web to research music, artist fa
+         +cts, new albums, release dates, tracklists, or real-time cultur
+         +al knowledge.',                                                
+      20        parameters: {
+      21          type: 'object',
+      22          properties: {
+      23            query: {
+      24              type: 'string',
+      20 -            description: 'The search query to send to Tinyfish 
+         -AI (e.g., "Moroccan rapper STORMY new album" or "dizzy dross om
+         -ar track list").'                                              
+      25 +            description: 'The search query (e.g., "Moroccan rap
+         +per STORMY new album").'                                       
+      26            }
+      27          },
+      28          required: ['query']
+     ...
+      32  ];
+      33  
+      34  async function getDJResponse(userInput = null) {
+      30 -  // 1. Fetch message history first                            
+      35    let recentMessages = [];
+      36    try {
+      37      recentMessages = await db.getRecentMessages(10);
+      38    } catch (dbErr) {
+      35 -    console.error('[DJ Brain] Failed to fetch message history:'
+         -, dbErr);                                                      
+      39 +    console.error('History fetch failed:', dbErr.message);     
+      40    }
+      41  
+      38 -  // 2. Fetch structured environment context                   
+      42    let ctxData;
+      43    try {
+      44      ctxData = await getContextData();
+      45    } catch (err) {
+      43 -    console.error('[DJ Brain] Failed to fetch context data:', e
+         -rr);                                                           
+      46 +    console.error('Context fetch failed:', err.message);       
+      47      ctxData = {
+      48        taste: 'Reflective, soft rock, neo-classical.',
+      49        routines: '',
+     ...
+      56      };
+      57    }
+      58  
+      56 -  // 3. Assemble dynamic System Prompt                         
+      57 -  let systemPrompt = `You are Claudio, a personalized, 24-hour 
+         -online AI radio station and DJ.                                
+      59 +  const systemPrompt = `You are Claudio, a personalized, 24-hou
+         +r online AI radio station and DJ.                              
+      60  Analyze the provided context (time, weather, tastes, routines, 
+          rules, recently played) and the conversation history.
+      61  Your goal is to act as a professional, vibe-setting DJ. Your sp
+          eech should be natural, engaging, and empathetic.
+      62  
+     ...
+      80  ${ctxData.favorites}
+      81  
+      82  [AVAILABLE TOOLS]
+      81 -You have access to the \`searchWeb\` tool which searches the we
+         -b using Tinyfish AI.                                           
+      82 -If the user asks about an artist, song, album, tracklist, or re
+         -lease date you do not fully know, or if you need real-time data
+         - to verify music facts (such as whether an artist is a pop sing
+         -er or rapper), you MUST call the \`searchWeb\` tool with a high
+         -ly specific search query.                                      
+      83 +You have access to the \`searchWeb\` tool.                     
+      84 +If the user asks about an artist, song, album, tracklist, or re
+         +lease date you do not fully know, or if you need real-time data
+         + to verify music facts, you MUST call the \`searchWeb\` tool wi
+         +th a highly specific search query.                             
+      85  Once you receive the tool response, weave the returned facts in
+          to your DJ introduction speech. Keep it natural and conversatio
+          nal!
+      86  
+      87  [OUTPUT FORMAT]
+     ...
+       94  }
+       95  
+       96  [ANTI-LOOPING DIRECTIVE]
+       95 -Do NOT copy or repeat your previous assistant responses from t
+          -he conversation history. If the history shows that you have re
+          -peated the exact same speech or track curations in previous tu
+          -rns, you MUST immediately break the pattern by changing your r
+          -esponse and acknowledging the user's latest message naturally 
+          -(e.g., saying "You're welcome, sir!" or "Glad you enjoyed it, 
+          -sir! Let me know if there's anything else you need."). If the 
+          -user says "thanks", "thank you", or greets you, leave the "pla
+          -y" list strictly empty [] so the music continues playing witho
+          -ut any interruption!                                          
+       97 +Do NOT copy or repeat your previous assistant responses from t
+          +he conversation history. If the history shows that you have re
+          +peated the exact same speech or track curations in previous tu
+          +rns, you MUST immediately break the pattern by changing your r
+          +esponse and acknowledging the user's latest message naturally.
+          + If the user says "thanks", "thank you", or greets you, leave 
+          +the "play" list strictly empty [] so the music continues playi
+          +ng without any interruption!                                  
+       98  `;
+       99  
+       98 -  // 4. Construct standard messages array with history        
+      100    const messages = [{ role: 'system', content: systemPrompt }]
+           ;
+      100 -                                                              
+      101 +                                                              
+      102    recentMessages.forEach(msg => {
+      103      messages.push({
+      104        role: msg.role === 'claudio' ? 'assistant' : 'user',
+     ...
+      106      });
+      107    });
+      108  
+      108 -  // Safety check: Ensure the current user input is at the end
+          - of the history                                               
+      109    const lastMsg = messages[messages.length - 1];
+      110    const isLastMsgUserCurrent = lastMsg && lastMsg.role === 'us
+           er' && lastMsg.content === userInput;
+      111    if (userInput !== null && !isLastMsgUserCurrent) {
+      112 -    messages.push({                                           
+      113 -      role: 'user',                                           
+      114 -      content: userInput                                      
+      115 -    });                                                       
+      112 +    messages.push({ role: 'user', content: userInput });      
+      113    } else if (userInput === null) {
+      117 -    // Session startup curation: Always append startup prompt 
+      114      messages.push({
+      115        role: 'user',
+      116        content: 'The radio is starting up. Introduce yourself a
+           nd play something that fits the current vibe.'
+     ...
+      118    }
+      119  
+      120    try {
+      125 -    console.log('[DJ Brain] Initiating API call to Groq...'); 
+      121      let response = await axios.post(
+      127 -      'https://api.groq.com/openai/v1/chat/completions',      
+      122 +      GROQ_URL,                                               
+      123        {
+      129 -        model: process.env.GROQ_MODEL || 'meta-llama/llama-4-s
+          -cout-17b-16e-instruct',                                       
+      130 -        messages: messages,                                   
+      131 -        tools: tools,                                         
+      124 +        model: GROQ_MODEL(),                                  
+      125 +        messages,                                             
+      126 +        tools,                                                
+      127          tool_choice: 'auto',
+      128          temperature: 0.7
+      129        },
+      135 -      {                                                       
+      136 -        headers: {                                            
+      137 -          'Authorization': `Bearer ${process.env.GROQ_API_KEY}
+          -`,                                                            
+      138 -          'Content-Type': 'application/json'                  
+      139 -        }                                                     
+      140 -      }                                                       
+      130 +      { headers: groqHeaders() }                              
+      131      );
+      132  
+      133      let messageObj = response.data.choices[0].message;
+      134  
+      145 -    // 5. Handle native Tool Calls                            
+      135      if (messageObj.tool_calls && messageObj.tool_calls.length 
+           > 0) {
+      136        const toolCall = messageObj.tool_calls[0];
+      137        if (toolCall.function.name === 'searchWeb') {
+      138          const args = JSON.parse(toolCall.function.arguments);
+      150 -        console.log(`[DJ Brain] Model requested tool searchWeb
+          - for query: "${args.query}"`);                                
+      151 -                                                              
+      152 -        // Execute search with Jina AI Search API             
+      139          const searchResults = await searchWeb(args.query);
+      154 -        console.log(`[DJ Brain] Tool execution finished. Chara
+          -cter length: ${searchResults ? searchResults.length : 0}`);   
+      140  
+      156 -        // Append tool call and response to messages history  
+      141          messages.push(messageObj);
+      142          messages.push({
+      143            role: 'tool',
+     ...
+      146            content: searchResults || 'Search timed out or retur
+           ned no results. Proceed with your static knowledge and persona
+            guardrails.'
+      147          });
+      148  
+      165 -        // Resend to Groq to generate the final response incor
+          -porating the search findings                                  
+      166 -        console.log('[DJ Brain] Resending query to Groq with r
+          -esearch findings...');                                        
+      149          response = await axios.post(
+      168 -          'https://api.groq.com/openai/v1/chat/completions',  
+      150 +          GROQ_URL,                                           
+      151            {
+      170 -            model: process.env.GROQ_MODEL || 'meta-llama/llama
+          --4-scout-17b-16e-instruct',                                   
+      171 -            messages: messages,                               
+      172 -            response_format: { type: "json_object" },         
+      152 +            model: GROQ_MODEL(),                              
+      153 +            messages,                                         
+      154 +            response_format: { type: 'json_object' },         
+      155              temperature: 0.7
+      156            },
+      175 -          {                                                   
+      176 -            headers: {                                        
+      177 -              'Authorization': `Bearer ${process.env.GROQ_API_
+          -KEY}`,                                                        
+      178 -              'Content-Type': 'application/json'              
+      179 -            }                                                 
+      180 -          }                                                   
+      157 +          { headers: groqHeaders() }                          
+      158          );
+      159  
+      160          messageObj = response.data.choices[0].message;
+      161        }
+      162      }
+      163  
+      187 -    console.log('[DJ Brain] Final decision generated.');      
+      188 -                                                              
+      189 -    // 6. Resilient JSON formatting safety check              
+      164      try {
+      165        let cleanContent = messageObj.content.trim();
+      166        if (cleanContent.startsWith('```')) {
+     ...
+      168        }
+      169        return JSON.parse(cleanContent);
+      170      } catch (parseErr) {
+      197 -      console.warn('[DJ Brain] First call did not return valid
+          - JSON. Formatting via fast second call...');                  
+      198 -                                                              
+      171        const formatMessages = [
+      172          {
+      173            role: 'system',
+     ...
+      186          {
+      187            role: 'user',
+      188            content: `Please format the following raw DJ respons
+           e into the JSON schema, keeping the play list empty [] if no n
+           ew track was requested:
+      217 -                                                              
+      189 +                                                              
+      190  Raw Response: ${messageObj.content}`
+      191          }
+      192        ];
+      193  
+      194        const formatResponse = await axios.post(
+      223 -        'https://api.groq.com/openai/v1/chat/completions',    
+      195 +        GROQ_URL,                                             
+      196          {
+      225 -          model: process.env.GROQ_MODEL || 'meta-llama/llama-4
+          --scout-17b-16e-instruct',                                     
+      197 +          model: GROQ_MODEL(),                                
+      198            messages: formatMessages,
+      227 -          response_format: { type: "json_object" },           
+      199 +          response_format: { type: 'json_object' },           
+      200            temperature: 0.2
+      201          },
+      230 -        {                                                     
+      231 -          headers: {                                          
+      232 -            'Authorization': `Bearer ${process.env.GROQ_API_KE
+          -Y}`,                                                          
+      233 -            'Content-Type': 'application/json'                
+      234 -          }                                                   
+      235 -        }                                                     
+      202 +        { headers: groqHeaders() }                            
+      203        );
+      204  
+      205        return JSON.parse(formatResponse.data.choices[0].message
+           .content);
+      206      }
+      207    } catch (err) {
+      241 -    console.error('Groq AI Error:', err.response?.data || err.
+          -message);                                                     
+      242 -                                                              
+      243 -    // Attempt to recover from Groq's native tool-use parsing 
+          -failures                                                      
+      208 +    console.error('Groq AI error:', err.response?.data || err.
+          +message);                                                     
+      209 +                                                              
+      210      const failedGen = err.response?.data?.error?.failed_genera
+           tion;
+      211      if (failedGen) {
+      212        try {
+      247 -        console.log('[DJ Brain] Attempting to recover from Gro
+          -q failed_generation error...');                               
+      248 -        let cleanGen = failedGen.trim();                      
+      249 -                                                              
+      250 -        // Find where the JSON starts                         
+      213 +        const cleanGen = failedGen.trim();                    
+      214          const firstBrace = cleanGen.indexOf('{');
+      215          const firstBracket = cleanGen.indexOf('[');
+      216          let jsonStart = -1;
+      254 -                                                              
+      217 +                                                              
+      218          if (firstBrace !== -1 && (firstBracket === -1 || first
+           Brace < firstBracket)) {
+      219            jsonStart = firstBrace;
+      220          } else if (firstBracket !== -1) {
+      221            jsonStart = firstBracket;
+      222          }
+      260 -                                                              
+      223 +                                                              
+      224          if (jsonStart !== -1) {
+      262 -          // Extract from jsonStart to the very end of the str
+          -ing                                                           
+      263 -          let rawJsonBlock = cleanGen.substring(jsonStart).tri
+          -m();                                                          
+      264 -                                                              
+      225 +          const rawJsonBlock = cleanGen.substring(jsonStart).t
+          +rim();                                                        
+      226            try {
+      266 -            // 1. Try to parse directly (handles complete JSON
+          - block with conversational prefix)                            
+      227              const parsed = JSON.parse(rawJsonBlock);
+      268 -            if (Array.isArray(parsed) && parsed.length > 0) { 
+      269 -              console.log('[DJ Brain] Successfully recovered J
+          -SON array from failed_generation!');                          
+      270 -              return parsed[0];                               
+      271 -            } else if (parsed) {                              
+      272 -              console.log('[DJ Brain] Successfully recovered J
+          -SON object from failed_generation!');                         
+      273 -              return parsed;                                  
+      274 -            }                                                 
+      275 -          } catch (directErr) {                               
+      276 -            // 2. Direct parse failed (likely due to trailing 
+          -truncation), try to auto-close and recover                    
+      277 -            console.log('[DJ Brain] Direct parsing failed. Att
+          -empting JSON auto-closing recovery...');                      
+      228 +            if (Array.isArray(parsed) && parsed.length > 0) re
+          +turn parsed[0];                                               
+      229 +            if (parsed) return parsed;                        
+      230 +          } catch {                                           
+      231              try {
+      279 -              const repairedJson = autoCloseJSON(rawJsonBlock)
+          -;                                                             
+      280 -              const parsed = JSON.parse(repairedJson);        
+      281 -              if (Array.isArray(parsed) && parsed.length > 0) 
+          -{                                                             
+      282 -                console.log('[DJ Brain] Successfully recovered
+          - JSON array after auto-closing repairs!');                    
+      283 -                return parsed[0];                             
+      284 -              } else if (parsed) {                            
+      285 -                console.log('[DJ Brain] Successfully recovered
+          - JSON object after auto-closing repairs!');                   
+      286 -                return parsed;                                
+      287 -              }                                               
+      232 +              const parsed = JSON.parse(autoCloseJSON(rawJsonB
+          +lock));                                                       
+      233 +              if (Array.isArray(parsed) && parsed.length > 0) 
+          +return parsed[0];                                             
+      234 +              if (parsed) return parsed;                      
+      235              } catch (repairErr) {
+      289 -              console.warn('[DJ Brain] JSON auto-closing repai
+          -r failed:', repairErr.message);                               
+      236 +              console.warn('JSON repair failed:', repairErr.me
+          +ssage);                                                       
+      237              }
+      238            }
+      292 -        } else {                                              
+      293 -          console.warn('[DJ Brain] No JSON start structures fo
+          -und in failed_generation.');                                  
+      239          }
+      240        } catch (recoveryErr) {
+      296 -        console.warn('[DJ Brain] Failed to recover JSON from f
+          -ailed_generation:', recoveryErr.message);                     
+      241 +        console.warn('Recovery failed:', recoveryErr.message);
+      242        }
+      243      }
+      244  
+      300 -    // Return a safe fallback if AI fails completely          
+      245      return {
+      246        say: "Hey there! I'm having a little trouble thinking ri
+           ght now, but let's keep the music moving.",
+      303 -      play: ["Blinding Lights - The Weeknd"],                 
+      304 -      intent: "append",                                       
+      305 -      reason: "API Fallback",                                 
+      306 -      segue: "Back to the hits."                              
+      247 +      play: ['Blinding Lights - The Weeknd'],                 
+      248 +      intent: 'append',                                       
+      249 +      reason: 'API Fallback',                                 
+      250 +      segue: 'Back to the hits.'                              
+      251      };
+      252    }
+      253  }
+      254  
+      311 -// Helper to repair and auto-close truncated JSON strings     
+      255  function autoCloseJSON(str) {
+      256    let clean = str.trim();
+      257    if (clean.length === 0) return clean;
+      315 -                                                              
+      258 +                                                              
+      259    let openBraces = 0;
+      260    let openBrackets = 0;
+      261    let inString = false;
+      262    let escape = false;
+      320 -                                                              
+      263 +                                                              
+      264    for (let i = 0; i < clean.length; i++) {
+      265      const char = clean[i];
+      266      if (escape) {
+     ...
+      282        else if (char === ']') openBrackets--;
+      283      }
+      284    }
+      342 -                                                              
+      343 -  if (inString) {                                             
+      344 -    clean += '"';                                             
+      345 -  }                                                           
+      346 -                                                              
+      285 +                                                              
+      286 +  if (inString) clean += '"';                                 
+      287 +                                                              
+      288    clean = clean.trim();
+      348 -  if (clean.endsWith(',')) {                                  
+      349 -    clean = clean.slice(0, -1).trim();                        
+      350 -  }                                                           
+      351 -                                                              
+      289 +  if (clean.endsWith(',')) clean = clean.slice(0, -1).trim(); 
+      290 +                                                              
+      291    while (openBrackets > 0) {
+      292      clean += ']';
+      293      openBrackets--;
+      294    }
+      356 -                                                              
+      295    while (openBraces > 0) {
+      296      clean += '}';
+      297      openBraces--;
+      298    }
+      361 -                                                              
+      299 +                                                              
+      300    return clean;
+      301  }
+      302  
+      303  module.exports = { getDJResponse };
+      366 -                                                              
+
+● Write(~\Desktop\claudio\src\context.js)
+  ⎿  Added 8 lines, removed 42 lines
+      10      try {
+      11        return fs.readFileSync(filePath, 'utf-8');
+      12      } catch (err) {
+      13 -      if (err.code === 'ENOENT') {                             
+      14 -        console.warn(`[Context] Optional user file missing: ${f
+         -ile}`);                                                        
+      15 -        return fallback;                                       
+      16 -      }                                                        
+      13 +      if (err.code === 'ENOENT') return fallback;              
+      14        throw err;
+      15      }
+      16    };
+      20 -                                                               
+      17 +                                                               
+      18    const taste = readDoc('taste.md', 'No explicit taste profile 
+          yet. Infer carefully from favorites, play history, and direct u
+          ser requests.');
+      19    const routines = readDoc('routines.md');
+      20    const moodRules = readDoc('mood-rules.md');
+      21    const persona = fs.readFileSync(path.resolve(__dirname, '../p
+          rompts/dj-persona.md'), 'utf-8');
+      25 -                                                               
+      22 +                                                               
+      23    const recentPlays = await db.getRecentPlays(10);
+      24    const playHistory = recentPlays.map(p => `${p.song_name} - ${
+          p.artist}`).join(', ');
+      25  
+      29 -  // Fetch Weather                                             
+      26    let weather = 'Unknown';
+      27    try {
+      28      const weatherRes = await axios.get(
+      33 -      `https://api.openweathermap.org/data/2.5/weather?q=${proc
+         -ess.env.CITY || 'Casablanca'}&appid=${process.env.OPENWEATHER_A
+         -PI_KEY}&units=metric`                                          
+      29 +      `https://api.openweathermap.org/data/2.5/weather?q=${proc
+         +ess.env.CITY || 'Casablanca'}&appid=${process.env.OPENWEATHER_A
+         +PI_KEY}&units=metric`,                                         
+      30 +      { timeout: 8000 }                                        
+      31      );
+      32      weather = `${weatherRes.data.weather[0].description}, ${wea
+          therRes.data.main.temp}°C`;
+      36 -  } catch (err) {                                              
+      33 +  } catch {                                                    
+      34      console.warn('Weather fetch failed, using default.');
+      35    }
+      36  
+      40 -  // Load playlists.json as favorites                          
+      37    let favorites = '';
+      38    try {
+      39      const favoritesPath = path.resolve(__dirname, '../user/play
+          lists.json');
+     ...
+      42        favorites = favList.map(f => `- ${f.name} - ${f.artist}`)
+          .join('\n');
+      43      }
+      44    } catch (err) {
+      49 -    console.warn('Failed to load user playlists.json:', err.mes
+         -sage);                                                         
+      45 +    console.warn('Failed to load playlists.json:', err.message)
+         +;                                                              
+      46    }
+      47  
+      48    return {
+     ...
+      57    };
+      58  }
+      59  
+      64 -async function buildContext(userInput) {                       
+      65 -  const data = await getContextData();                         
+      66 -                                                               
+      67 -  return `                                                     
+      68 -[SYSTEM PERSONA]                                               
+      69 -${data.persona}                                                
+      70 -                                                               
+      71 -[USER TASTE]                                                   
+      72 -${data.taste}                                                  
+      73 -                                                               
+      74 -[USER ROUTINES]                                                
+      75 -${data.routines}                                               
+      76 -                                                               
+      77 -[MOOD RULES]                                                   
+      78 -${data.moodRules}                                              
+      79 -                                                               
+      80 -[ENVIRONMENT]                                                  
+      81 -Time: ${new Date().toLocaleString()}                           
+      82 -Weather: ${data.weather}                                       
+      83 -                                                               
+      84 -[MEMORY RECALL]                                                
+      85 -Recently played: ${data.playHistory || 'Nothing yet'}          
+      86 -Favorites:                                                     
+      87 -${data.favorites}                                              
+      88 -                                                               
+      89 -[USER INPUT]                                                   
+      90 -${userInput || 'The radio is starting up. Introduce yourself an
+         -d play something that fits the current vibe.'}                 
+      91 -`;                                                             
+      92 -}                                                              
+      93 -                                                               
+      94 -module.exports = { buildContext, getContextData };             
+      60 +module.exports = { getContextData };                           
+
+● Write(~\Desktop\claudio\src\tts.js)  ⎿  Added 31 lines, removed 44 lines
+      11  }
+      12  
+      13  async function generateSpeech(text) {
+      14 -  // Deepgram doesn't support tags, so we should be sending cle
+         -an text.                                                       
+      15 -  // We'll strip brackets just in case the model still includes
+         - them.                                                         
+      14    const cleanText = text.replace(/\[.*?\]/g, '').trim();
+      17 -                                                               
+      15 +  if (!cleanText) return null;                                 
+      16 +                                                               
+      17    const hash = crypto.createHash('md5').update(cleanText).diges
+          t('hex');
+      18    const fileName = `${hash}.mp3`;
+      19    const filePath = path.join(TTS_CACHE_DIR, fileName);
+      20    const publicPath = `/tts/${fileName}`;
+      21  
+      23 -  if (fs.existsSync(filePath)) {                               
+      24 -    console.log(`TTS Cache Hit: ${cleanText.substring(0, 20)}..
+         -.`);                                                           
+      25 -    return publicPath;                                         
+      26 -  }                                                            
+      22 +  if (fs.existsSync(filePath)) return publicPath;              
+      23  
+      28 -  console.log(`TTS Cache Miss: Generating Deepgram Aura speech 
+         -for "${cleanText.substring(0, 20)}..."`);                      
+      24 +  const response = await axios.post(                           
+      25 +    'https://api.deepgram.com/v1/speak?model=aura-asteria-en', 
+      26 +    { text: cleanText },                                       
+      27 +    {                                                          
+      28 +      headers: {                                               
+      29 +        'Authorization': `Token ${process.env.DEEPGRAM_API_KEY}
+         +`,                                                             
+      30 +        'Content-Type': 'application/json'                     
+      31 +      },                                                       
+      32 +      responseType: 'stream'                                   
+      33 +    }                                                          
+      34 +  );                                                           
+      35  
+      30 -  try {                                                        
+      31 -    const response = await axios.post(                         
+      32 -      'https://api.deepgram.com/v1/speak?model=aura-asteria-en'
+         -,                                                              
+      33 -      { text: cleanText },                                     
+      34 -      {                                                        
+      35 -        headers: {                                             
+      36 -          'Authorization': `Token ${process.env.DEEPGRAM_API_KE
+         -Y}`,                                                           
+      37 -          'Content-Type': 'application/json'                   
+      38 -        },                                                     
+      39 -        responseType: 'stream'                                 
+      40 -      }                                                        
+      41 -    );                                                         
+      36 +  const writer = fs.createWriteStream(filePath);               
+      37 +  response.data.pipe(writer);                                  
+      38  
+      43 -    const writer = fs.createWriteStream(filePath);             
+      44 -    response.data.pipe(writer);                                
+      45 -                                                               
+      46 -    return new Promise((resolve, reject) => {                  
+      47 -      writer.on('finish', () => resolve(publicPath));          
+      48 -      writer.on('error', reject);                              
+      49 -    });                                                        
+      50 -  } catch (error) {                                            
+      51 -    console.error('Deepgram TTS Error:', error.response?.data |
+         -| error.message);                                              
+      52 -    throw error;                                               
+      53 -  }                                                            
+      39 +  return new Promise((resolve, reject) => {                    
+      40 +    writer.on('finish', () => resolve(publicPath));            
+      41 +    writer.on('error', reject);                                
+      42 +  });                                                          
+      43  }
+      44  
+      56 -async function cleanupTTS() {                                  
+      57 -  const files = fs.readdirSync(TTS_CACHE_DIR);                 
+      58 -  const now = Date.now();                                      
+      59 -  const EXPIRATION_MS = 3 * 60 * 1000; // 3 minutes            
+      45 +function cleanupTTS() {                                        
+      46 +  try {                                                        
+      47 +    const files = fs.readdirSync(TTS_CACHE_DIR);               
+      48 +    const now = Date.now();                                    
+      49 +    const EXPIRATION_MS = 10 * 60 * 1000;                      
+      50  
+      61 -  files.forEach(file => {                                      
+      62 -    const filePath = path.join(TTS_CACHE_DIR, file);           
+      63 -    const stats = fs.statSync(filePath);                       
+      64 -    if (now - stats.mtimeMs > EXPIRATION_MS) {                 
+      65 -      console.log(`[Janitor] Deleting expired transmission: ${f
+         -ile}`);                                                        
+      66 -      fs.unlinkSync(filePath);                                 
+      67 -    }                                                          
+      68 -  });                                                          
+      51 +    files.forEach(file => {                                    
+      52 +      const filePath = path.join(TTS_CACHE_DIR, file);         
+      53 +      const stats = fs.statSync(filePath);                     
+      54 +      if (now - stats.mtimeMs > EXPIRATION_MS) fs.unlinkSync(fi
+         +lePath);                                                       
+      55 +    });                                                        
+      56 +  } catch {}                                                   
+      57  }
+      58  
+      59  module.exports = { generateSpeech, cleanupTTS };
+      72 -                                                               
+
+● Write(~\Desktop\claudio\src\music.js)
+  ⎿  Added 4 lines, removed 17 lines
+       1  const yts = require('yt-search');
+       2 -require('dotenv').config();                                    
+       2  
+       4 -const PORT = process.env.PORT || 8080;                         
+       5 -                                                               
+       3  async function searchSong(query) {
+       4    try {
+       8 -    console.log(`[Music Engine] Searching YouTube for: ${query}
+         -`);                                                            
+       5      const r = await yts(query);
+       6      const video = r.videos[0];
+       7 +    if (!video) return null;                                   
+       8  
+      12 -    if (!video) {                                              
+      13 -      console.warn(`No results found on YouTube for: ${query}`)
+         -;                                                              
+      14 -      return null;                                             
+      15 -    }                                                          
+      16 -                                                               
+      17 -    console.log(`[Music Engine] Found Match: ${video.title}`); 
+      18 -                                                               
+      19 -    // Instead of a direct link, we point to our internal strea
+         -ming endpoint                                                  
+      20 -    // This allows us to use yt-dlp on the backend for high-qua
+         -lity, reliable streaming.                                      
+      21 -    const internalStreamUrl = `/api/stream?v=${video.videoId}`;
+      22 -                                                               
+       9      return {
+      10        id: video.videoId,
+      11        name: video.title,
+      12        artist: video.author.name,
+      13        album: 'Global Stream Source',
+      14        cover: video.thumbnail,
+      29 -      url: internalStreamUrl                                   
+      15 +      duration: video.seconds || 0,                            
+      16 +      url: `/api/stream?v=${video.videoId}`                    
+      17      };
+      18    } catch (err) {
+      32 -    console.error(`Music API Error: ${err.message}`);          
+      19 +    console.error('Music search error:', err.message);         
+      20      return null;
+      21    }
+      22  }
+
+● Write(~\Desktop\claudio\src\search.js)
+  ⎿  Added 5 lines, removed 20 lines
+       3  
+       4  async function searchWeb(query) {
+       5    const token = process.env.TINYFISH_API_KEY;
+       6 -  if (!token) {                                                
+       7 -    console.warn('[Tinyfish Search] TINYFISH_API_KEY is not def
+         -ined in environment. Skipping web search.');                   
+       8 -    return null;                                               
+       9 -  }                                                            
+       6 +  if (!token) return null;                                     
+       7  
+      11 -  // Format the query specifically for Tinyfish Search         
+       8    const url = `https://api.search.tinyfish.ai?query=${encodeURI
+          Component(query)}`;
+      13 -  console.log(`[Tinyfish Search] Querying: "${query}"...`);    
+       9  
+      10    try {
+      11      const response = await axios.get(url, {
+     ...
+      13          'X-API-Key': token,
+      14          'Accept': 'application/json'
+      15        },
+      21 -      timeout: 15000 // 15-second safety timeout               
+      16 +      timeout: 15000                                           
+      17      });
+      18  
+      19      if (response.data && response.data.results && response.data
+          .results.length > 0) {
+      25 -      console.log(`[Tinyfish Search] Success. Retrieved ${respo
+         -nse.data.results.length} results.`);                           
+      26 -                                                               
+      27 -      // Parse the top 4 results into a rich, concise summary f
+         -or the LLM                                                     
+      28 -      const results = response.data.results.slice(0, 4).map((it
+         -em, idx) => {                                                  
+      20 +      return response.data.results.slice(0, 4).map((item, idx) 
+         +=> {                                                           
+      21          const snippet = item.snippet || 'No summary available.'
+          ;
+      22          return `Result [${idx + 1}]:\nTitle: ${item.title}\nURL
+          : ${item.url}\nSummary: ${snippet}`;
+      23        }).join('\n\n');
+      32 -                                                               
+      33 -      return results;                                          
+      34 -    } else {                                                   
+      35 -      console.log('[Tinyfish Search] No results found.');      
+      36 -      return null;                                             
+      24      }
+      25 +    return null;                                               
+      26    } catch (error) {
+      39 -    const errorData = error.response?.data;                    
+      40 -    console.error('[Tinyfish Search] Search failed:', errorData
+         - || error.message);                                            
+      41 -                                                               
+      42 -    // Fallback: Proceed using static knowledge                
+      27 +    console.error('Web search failed:', error.response?.data ||
+         + error.message);                                               
+      28      return 'Web search is temporarily unavailable. Proceed usin
+          g your extensive pre-trained internal knowledge of music histor
+          y, tracklists, and artists to reply to the user and curate the 
+          songs.';
+      29    }
+      30  }
+
+● Write(index.html)
+  ⎿  Error writing file
+
+  Read 1 file, ran 1 shell command (ctrl+o to expand)
+
+● Write(index.html)
+  ⎿  Wrote 135 lines to index.html
+       1 <!DOCTYPE html>
+       2 <html lang="en" data-theme="dark">
+       4   <meta charset="UTF-8">
+       5   <meta name="viewport" content="width=device-width, initial-sca
+         le=1.0">
+       7   <link rel="preconnect" href="https://fonts.googleapis.com">
+       8   <link rel="preconnect" href="https://fonts.gstatic.com" crosso
+         rigin>
+         o:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+      10   <link rel="stylesheet" href="styles.css">
+     … +155 lines (ctrl+o to expand)
+
+● Write(styles.css)
+  ⎿  Wrote 1050 lines to styles.css
+       1 :root {
+       2   --accent: #22c55e;
+       3   --accent-dim: rgba(34, 197, 94, 0.14);
+       4   --accent-glow: rgba(34, 197, 94, 0.45);
+       5   --font: 'Space Mono', 'Courier New', monospace;
+       6 }
+       7 
+       8 :root[data-theme="dark"] {
+       9   --bg: #060807;
+      10   --bg-panel: #0b0e0c;
+     … +1045 lines (ctrl+o to expand)
+
+● Write(dotmatrix.js)
+  ⎿  Wrote 232 lines to dotmatrix.js
+       1 const GLYPHS = {
+       2   '0': [14, 17, 19, 21, 25, 17, 14],
+       3   '1': [4, 12, 4, 4, 4, 4, 14],
+       4   '2': [14, 17, 1, 2, 4, 8, 31],
+       5   '3': [30, 1, 1, 14, 1, 1, 30],
+       6   '4': [2, 6, 10, 18, 31, 2, 2],
+       7   '5': [31, 16, 30, 1, 1, 17, 14],
+       8   '6': [6, 8, 16, 30, 17, 17, 14],
+       9   '7': [31, 1, 2, 4, 8, 8, 8],
+      10   '8': [14, 17, 17, 14, 17, 17, 14],
+     … +230 lines (ctrl+o to expand)
+  ⎿  You've hit your session limit · resets 11:40am (Africa/Casablanca)
+     /upgrade to increase your usage limit.
+
+✻ Cooked for 12m 52s

@@ -1,272 +1,135 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Claudio FM - AI Radio Pro</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script data-purpose="tailwind-config">
-        tailwind.config = {
-          theme: {
-            extend: {
-              colors: {
-                appka: {
-                  dark: '#000000',
-                  panel: '#0a0a0b',
-                  accentGreen: '#22c55e',
-                }
-              },
-              fontFamily: {
-                mono: ['"Space Mono"', 'monospace'],
-                pixel: ['"Press Start 2P"', 'monospace'],
-                sans: ['"Inter"', 'sans-serif'],
-              }
-            }
-          }
-        }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Press+Start+2P&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
-    <style>
-        :root {
-            --accent-color: #22c55e;
-            --accent-glow: rgba(34, 197, 94, 0.3);
-        }
-
-        body {
-            background-color: #000000;
-            background-image: radial-gradient(circle at 50% 0%, #111111 0%, #000000 70%);
-            color: #fff;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-family: 'Inter', sans-serif;
-            padding: 2rem 1rem;
-            position: relative;
-            overflow-x: hidden;
-            overflow-y: auto;
-        }
-
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-            background-size: 24px 24px;
-            pointer-events: none;
-            z-index: 0;
-            height: 100%;
-        }
-
-        .app-container {
-            width: 100%;
-            max-width: 1200px;
-            min-height: auto;
-            background-color: rgba(10, 10, 11, 0.8);
-            backdrop-filter: blur(40px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 24px;
-            box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8);
-            position: relative;
-            z-index: 1;
-            display: flex;
-            flex-direction: column;
-            margin-bottom: 4rem;
-        }
-
-        @media (max-width: 768px) {
-            body { padding: 1rem; height: auto; align-items: flex-start; }
-            .app-container { max-width: 500px; }
-            .digital-clock { font-size: 3rem; }
-        }
-
-        .pixel-text { font-family: 'Press Start 2P', monospace; }
-        .mono-text { font-family: 'Space Mono', monospace; }
-
-        .digital-clock {
-            font-family: 'Space Mono', monospace;
-            font-size: 7rem;
-            font-weight: 700;
-            letter-spacing: -4px;
-            text-shadow: 0 0 30px var(--accent-glow);
-            color: #fff;
-        }
-
-        .digital-clock-colon { animation: blink 2s infinite; opacity: 0.5; }
-        @keyframes blink { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0.2; } }
-
-        .glass-panel { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; }
-        .chat-bubble { background: rgba(15, 15, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; backdrop-filter: blur(10px); }
-
-        .icon-btn {
-            width: 40px; height: 40px; border-radius: 50%; 
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex; align-items: center; justify-content: center; 
-            color: rgba(255, 255, 255, 0.5); transition: all 0.2s;
-            background: rgba(255, 255, 255, 0.03);
-        }
-        .icon-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; border-color: var(--accent-color); box-shadow: 0 0 15px var(--accent-glow); }
-
-        .text-btn {
-            font-size: 10px; font-weight: 600; letter-spacing: 1px;
-            padding: 6px 16px; border-radius: 99px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: rgba(255, 255, 255, 0.4); text-transform: uppercase;
-        }
-        .text-btn:hover { border-color: white; color: white; }
-
-        .progress-bar-container { height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 2px; position: relative; }
-        .progress-bar-fill { position: absolute; top: 0; left: 0; bottom: 0; background: white; border-radius: 2px; box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); transition: width 0.1s linear; }
-
-        .equalizer .bar { width: 3px; background-color: var(--accent-color); transition: height 0.2s ease; }
-        .equalizer.is-playing .bar { animation: dance 1s infinite alternate; box-shadow: 0 0 10px var(--accent-glow); }
-        @keyframes dance { 0% { height: 4px; } 100% { height: 20px; } }
-
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color); }
-        .volume-slider { -webkit-appearance: none; width: 80px; height: 2px; background: rgba(255, 255, 255, 0.1); outline: none; }
-        .volume-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: white; cursor: pointer; box-shadow: 0 0 10px white; }
-
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-
-        /* Light Mode Overrides */
-        body.light-mode { background-color: #f0f2f5; background-image: radial-gradient(circle at 50% 0%, #ffffff 0%, #e0e4e8 70%); color: #1a1a1b; }
-        body.light-mode::before { background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px); }
-        body.light-mode .app-container { background-color: rgba(255, 255, 255, 0.9); border-color: rgba(0, 0, 0, 0.05); box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.1); }
-        body.light-mode .digital-clock { color: #1a1a1b; text-shadow: none; }
-        body.light-mode .glass-panel { background: rgba(0, 0, 0, 0.02); border-color: rgba(0, 0, 0, 0.05); }
-        body.light-mode .chat-bubble { background: white; border-color: rgba(0, 0, 0, 0.05); color: #333; }
-        body.light-mode .text-white\/30 { color: rgba(0, 0, 0, 0.3); }
-        body.light-mode .text-white\/80 { color: #222; }
-        body.light-mode .mono-text { color: #666; }
-        body.light-mode .icon-btn { background: rgba(0, 0, 0, 0.03); color: #666; }
-
-        /* Ignition Overlay */
-        #ignition-overlay {
-            position: fixed; inset: 0; background: black; z-index: 100;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rem;
-            transition: opacity 0.8s ease, visibility 0.8s;
-        }
-        #ignition-overlay.started { opacity: 0; visibility: hidden; }
-        .ignition-btn {
-            background: white; color: black; padding: 1.5rem 4rem; border-radius: 500px;
-            font-weight: 900; letter-spacing: 0.3em; text-transform: uppercase; font-size: 14px;
-            cursor: pointer; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 0 50px rgba(255,255,255,0.2);
-        }
-        .ignition-btn:hover { transform: scale(1.05); background: #22c55e; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claudio FM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=queuecmd2">
 </head>
-<body class="p-4 md:p-8">
-    <div id="ignition-overlay">
-        <div class="text-white/20 text-[10px] uppercase tracking-[0.5em]">Neural Frequency Synced</div>
-        <button class="ignition-btn" id="start-station">Start Station</button>
-        <div class="text-white/20 text-[10px] uppercase tracking-[0.5em]">Claudio FM Pro v1.0</div>
+<body>
+  <div id="boot" class="boot">
+    <div class="boot-inner">
+      <canvas id="boot-logo" width="320" height="56"></canvas>
+      <button id="boot-btn" class="boot-btn">
+        <span class="boot-dot"></span>
+        PRESS TO START
+      </button>
+      <div class="boot-sub">PERSONAL AI RADIO &middot; 24/7 &middot; NO ALGORITHM, JUST TASTE</div>
     </div>
+  </div>
 
-    <main class="app-container">
-        <header class="flex justify-between items-center px-10 py-8 border-b border-white/5">
-            <div class="flex items-center gap-4">
-                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Claudio" class="w-10 h-10 rounded-full border border-white/10 p-1 bg-white/5" alt="Claudio">
-                <h1 class="pixel-text text-2xl tracking-[0.2em] text-white/90">Claudio</h1>
-            </div>
-            <div class="flex items-center gap-6">
-                <span class="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold">PRO STATION</span>
-                <div class="flex bg-white/5 rounded-full p-1 border border-white/10" id="theme-toggles">
-                    <button id="btn-dark" class="text-[10px] bg-white text-black px-4 py-1.5 rounded-full font-bold uppercase tracking-wider transition-all">Dark</button>
-                    <button id="btn-light" class="text-[10px] text-white/40 px-4 py-1.5 rounded-full uppercase tracking-wider hover:text-white transition-all">Light</button>
-                </div>
-            </div>
-        </header>
-
-        <div class="flex flex-col md:flex-row flex-1">
-            <div class="w-full md:w-1/2 flex flex-col border-b md:border-b-0 md:border-r border-white/5">
-                <section class="flex flex-col items-center justify-center p-6 md:p-12 relative min-h-[400px]">
-                    <div class="digital-clock mb-6" id="clock">--<span class="digital-clock-colon">:</span>--</div>
-                    <div class="text-center mb-8">
-                        <div class="text-xl font-bold tracking-[0.3em] uppercase text-white/80" id="day-name">---</div>
-                        <div class="text-xs tracking-[0.5em] text-white/30 mt-2" id="date-string">---</div>
-                    </div>
-                    <div class="flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] font-bold text-appka-accentGreen">
-                        <span class="status-dot"></span> ON AIR
-                    </div>
-                </section>
-
-                <section class="p-6 md:p-10 border-t border-white/5 bg-black/40">
-                    <div class="flex items-center justify-between mb-10">
-                        <div class="flex items-center gap-6">
-                            <div id="equalizer" class="equalizer flex items-end gap-[3px] h-6">
-                                <div class="bar h-[6px]"></div><div class="bar h-[12px]"></div><div class="bar h-[8px]"></div><div class="bar h-[14px]"></div>
-                            </div>
-                            <div>
-                                <div class="text-xl font-bold text-white" id="current-track-title">Connecting...</div>
-                                <div class="text-[10px] text-white/30 uppercase tracking-[0.2em] mt-2" id="player-status">Signal Syncing</div>
-                            </div>
-                        </div>
-                        <div class="flex gap-3">
-                            <button class="icon-btn"><i class="far fa-heart"></i></button>
-                            <button class="text-btn">Hide</button>
-                            <button class="text-btn">Fav</button>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center justify-between mb-8">
-                        <div class="flex items-center gap-4">
-                            <button class="icon-btn" id="prev"><i class="fas fa-step-backward"></i></button>
-                            <button class="icon-btn w-14 h-14 bg-white/10" id="play-pause"><i class="fas fa-play text-lg"></i></button>
-                            <button class="icon-btn" id="skip"><i class="fas fa-step-forward"></i></button>
-                            <button class="icon-btn" id="stop"><i class="fas fa-stop text-xs"></i></button>
-                        </div>
-                        <div class="flex items-center gap-4">
-                            <i class="fas fa-volume-up text-white/20 text-sm"></i>
-                            <input type="range" class="volume-slider" id="volume" min="0" max="100" value="80">
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-6 text-[10px] mono-text text-white/30">
-                        <span id="current-time">0:00</span>
-                        <div class="flex-1 progress-bar-container"><div class="progress-bar-fill" id="progress-fill"></div></div>
-                        <span id="duration">0:00</span>
-                    </div>
-                </section>
-            </div>
-
-            <div class="w-full md:w-1/2 flex flex-col bg-black/20">
-                <div class="px-8 py-4 border-b border-white/5 flex justify-between items-center">
-                    <span class="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold">Transmission Log</span>
-                    <div id="thinking-indicator" class="hidden">
-                        <div class="flex gap-1.5">
-                            <div class="w-1 h-1 bg-appka-accentGreen rounded-full animate-bounce"></div>
-                            <div class="w-1 h-1 bg-appka-accentGreen rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                            <div class="w-1 h-1 bg-appka-accentGreen rounded-full animate-bounce [animation-delay:0.4s]"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="overflow-y-auto p-6 md:p-10 flex flex-col gap-6 md:gap-8" id="chat-history" style="max-height: 600px;">
-                    <div class="flex items-center justify-between glass-panel p-5 border-l-2 border-appka-accentGreen">
-                        <div class="flex items-center gap-4">
-                            <span class="status-dot"></span>
-                            <span class="pixel-text text-sm text-white/90">Claudio FM</span>
-                        </div>
-                        <span class="text-[10px] text-appka-accentGreen font-bold tracking-[0.2em]">LIVE 128KBPS</span>
-                    </div>
-                    <div class="text-center text-[10px] uppercase tracking-[0.3em] text-white/10 my-4">Secure Neural Link Established</div>
-                </div>
-                <footer class="p-8 border-t border-white/5 bg-black/40">
-                    <div class="flex gap-4 items-center">
-                        <input id="chat-input" class="flex-1 py-4 px-6 text-sm bg-white/5 border border-white/10 focus:ring-0 focus:border-appka-accentGreen rounded-xl text-white placeholder-white/20 transition-all" placeholder="Communicate with the station..." type="text"/>
-                        <button id="send-btn" class="w-14 h-14 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white/80 hover:bg-white/20 hover:border-white/40 transition-all">
-                            <i class="fas fa-arrow-up"></i>
-                        </button>
-                    </div>
-                </footer>
-            </div>
+  <div class="station" id="station">
+    <header class="topbar">
+      <canvas id="wordmark-canvas" class="wordmark" width="170" height="26"></canvas>
+      <div class="topbar-right">
+        <button class="chip" id="profile-btn">PROFILE</button>
+        <div class="theme-toggle" id="theme-toggle" role="group" aria-label="Theme">
+          <button data-theme-btn="dark" class="active">DARK</button>
+          <button data-theme-btn="light">LIGHT</button>
         </div>
-    </main>
+      </div>
+    </header>
 
-    <audio id="audio-player"></audio>
-    <audio id="tts-player"></audio>
-    <script src="app.js"></script>
+    <section class="hero" id="hero">
+      <canvas id="clock" class="clock-canvas"></canvas>
+      <div class="hero-day" id="hero-day">SUNDAY</div>
+      <div class="hero-date" id="hero-date">01 JAN 2026</div>
+      <div class="onair" id="onair"><span class="onair-dot"></span> ON AIR</div>
+    </section>
+
+    <section class="player" id="player">
+      <div class="player-top">
+        <div class="player-left">
+          <div class="eq" id="eq">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="player-track">
+            <div class="player-title" id="player-title">STANDBY</div>
+            <div class="player-status" id="player-status">IDLE</div>
+          </div>
+        </div>
+        <div class="player-controls">
+          <button class="pbtn" id="btn-prev" title="Previous" aria-label="Previous">&#9198;</button>
+          <button class="pbtn pbtn-main" id="btn-play" title="Play / Pause" aria-label="Play or pause">&#9654;</button>
+          <button class="pbtn" id="btn-next" title="Next" aria-label="Next">&#9197;</button>
+          <button class="pbtn" id="btn-stop" title="Stop" aria-label="Stop">&#9632;</button>
+          <button class="pbtn pbtn-like" id="btn-like" title="Like" aria-label="Like">&#9825;</button>
+          <button class="chip chip-sm" id="btn-hide">HIDE</button>
+          <div class="vol">
+            <span class="vol-label">VOL</span>
+            <input type="range" id="vol-slider" min="0" max="100" value="80">
+          </div>
+        </div>
+      </div>
+      <div class="player-progress">
+        <span class="ptime" id="time-cur">0:00</span>
+        <div class="pbar" id="pbar"><div class="pbar-fill" id="pbar-fill"></div></div>
+        <span class="ptime" id="time-total">0:00</span>
+      </div>
+    </section>
+
+    <section class="queue" id="queue-panel">
+      <div class="queue-head">
+        <span>QUEUE</span>
+        <span id="queue-count">0 TRACKS</span>
+      </div>
+      <ol class="queue-list" id="queue-list"></ol>
+    </section>
+
+    <section class="live">
+      <div class="live-bar">
+        <span class="live-id"><span class="live-dot"></span> Claudio</span>
+        <span class="live-tag">LIVE</span>
+      </div>
+      <div class="chat" id="chat"></div>
+      <div class="thinking" id="thinking" hidden>
+        <span class="live-dot"></span> CLAUDIO IS THINKING<span class="dots"><i>.</i><i>.</i><i>.</i></span>
+      </div>
+      <form class="chat-input" id="chat-form">
+        <input type="text" id="chat-text" placeholder="Say something to the DJ..." maxlength="600" autocomplete="off">
+        <button type="button" class="ibtn" id="btn-mic" title="Voice input" aria-label="Voice input">MIC</button>
+        <button type="submit" class="ibtn ibtn-send" title="Send" aria-label="Send">&#8593;</button>
+      </form>
+    </section>
+
+    <footer class="statusbar">
+      <span>CLAUDIO FM</span>
+      <span class="statusbar-mid" id="ticker">&middot; &middot; &middot;</span>
+      <span id="conn-status" class="conn conn-off">OFFLINE</span>
+    </footer>
+  </div>
+
+  <div class="modal" id="profile-modal" hidden>
+    <div class="modal-backdrop" id="profile-backdrop"></div>
+    <div class="profile-card">
+      <button class="modal-close" id="profile-close">&times;</button>
+      <div class="profile-head">
+        <div class="profile-avatar">C</div>
+        <div>
+          <canvas id="profile-name" width="190" height="30"></canvas>
+          <div class="profile-tagline">spinning since boot &middot; taste.md loaded</div>
+        </div>
+      </div>
+      <div class="profile-bio" id="profile-bio"></div>
+      <div class="profile-sep"></div>
+      <div class="profile-stats">
+        <div class="pstat"><div class="pstat-label">ON AIR</div><div class="pstat-value" id="stat-onair">24/7</div></div>
+        <div class="pstat"><div class="pstat-label">GENRES</div><div class="pstat-value">&infin;</div></div>
+        <div class="pstat"><div class="pstat-label">LISTENER</div><div class="pstat-value" id="stat-listeners">1</div></div>
+      </div>
+      <div class="profile-genres" id="profile-genres"></div>
+      <canvas class="profile-wave" id="profile-wave" width="400" height="70"></canvas>
+      <div class="profile-foot">CLAUDIO FM &times; YOU &middot; I HATE ALGORITHM. I HAVE TASTE.</div>
+    </div>
+  </div>
+
+  <audio id="audio-music" preload="none"></audio>
+  <audio id="audio-tts" preload="none"></audio>
+  <div class="toast" id="toast" hidden></div>
+
+  <script type="module" src="js/main.js?v=queuecmd2"></script>
 </body>
 </html>

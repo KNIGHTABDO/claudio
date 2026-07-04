@@ -1,23 +1,28 @@
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
 const db = require('./db');
 const { getContextData } = require('./context');
 const { searchWeb } = require('./search');
 require('dotenv').config();
+
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = () => process.env.GROQ_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
+const groqHeaders = () => ({
+  'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+  'Content-Type': 'application/json'
+});
 
 const tools = [
   {
     type: 'function',
     function: {
       name: 'searchWeb',
-      description: 'Search the web using Tinyfish AI to research music, artist facts, new albums, release dates, tracklists, or real-time cultural knowledge.',
+      description: 'Search the web to research music, artist facts, new albums, release dates, tracklists, or real-time cultural knowledge.',
       parameters: {
         type: 'object',
         properties: {
           query: {
             type: 'string',
-            description: 'The search query to send to Tinyfish AI (e.g., "Moroccan rapper STORMY new album" or "dizzy dross omar track list").'
+            description: 'The search query (e.g., "Moroccan rapper STORMY new album").'
           }
         },
         required: ['query']
@@ -26,21 +31,26 @@ const tools = [
   }
 ];
 
-async function getDJResponse(userInput = null) {
-  // 1. Fetch message history first
+async function getDJResponse(userInput = null, options = {}) {
   let recentMessages = [];
   try {
     recentMessages = await db.getRecentMessages(10);
   } catch (dbErr) {
-    console.error('[DJ Brain] Failed to fetch message history:', dbErr);
+    console.error('History fetch failed:', dbErr.message);
   }
 
-  // 2. Fetch structured environment context
   let ctxData;
   try {
     ctxData = await getContextData();
+    if (options.ignoreTaste) {
+      ctxData.taste = 'No saved taste profile for this session. Curate from current global trends and broad international appeal.';
+      ctxData.routines = '';
+      ctxData.moodRules = '';
+      ctxData.playHistory = '';
+      ctxData.favorites = '';
+    }
   } catch (err) {
-    console.error('[DJ Brain] Failed to fetch context data:', err);
+    console.error('Context fetch failed:', err.message);
     ctxData = {
       taste: 'Reflective, soft rock, neo-classical.',
       routines: '',
@@ -53,8 +63,7 @@ async function getDJResponse(userInput = null) {
     };
   }
 
-  // 3. Assemble dynamic System Prompt
-  let systemPrompt = `You are Claudio, a personalized, 24-hour online AI radio station and DJ.
+  const systemPrompt = `You are Claudio, a personalized, 24-hour online AI radio station and DJ.
 Analyze the provided context (time, weather, tastes, routines, rules, recently played) and the conversation history.
 Your goal is to act as a professional, vibe-setting DJ. Your speech should be natural, engaging, and empathetic.
 
@@ -78,8 +87,8 @@ User Favorites Playlist:
 ${ctxData.favorites}
 
 [AVAILABLE TOOLS]
-You have access to the \`searchWeb\` tool which searches the web using Tinyfish AI. 
-If the user asks about an artist, song, album, tracklist, or release date you do not fully know, or if you need real-time data to verify music facts (such as whether an artist is a pop singer or rapper), you MUST call the \`searchWeb\` tool with a highly specific search query.
+You have access to the \`searchWeb\` tool.
+If the user asks about an artist, song, album, tracklist, or release date you do not fully know, or if you need real-time data to verify music facts, you MUST call the \`searchWeb\` tool with a highly specific search query.
 Once you receive the tool response, weave the returned facts into your DJ introduction speech. Keep it natural and conversational!
 
 [OUTPUT FORMAT]
@@ -92,12 +101,11 @@ You MUST output a strictly valid JSON object matching the following schema at al
 }
 
 [ANTI-LOOPING DIRECTIVE]
-Do NOT copy or repeat your previous assistant responses from the conversation history. If the history shows that you have repeated the exact same speech or track curations in previous turns, you MUST immediately break the pattern by changing your response and acknowledging the user's latest message naturally (e.g., saying "You're welcome, sir!" or "Glad you enjoyed it, sir! Let me know if there's anything else you need."). If the user says "thanks", "thank you", or greets you, leave the "play" list strictly empty [] so the music continues playing without any interruption!
+Do NOT copy or repeat your previous assistant responses from the conversation history. If the history shows that you have repeated the exact same speech or track curations in previous turns, you MUST immediately break the pattern by changing your response and acknowledging the user's latest message naturally. If the user says "thanks", "thank you", or greets you, leave the "play" list strictly empty [] so the music continues playing without any interruption!
 `;
 
-  // 4. Construct standard messages array with history
   const messages = [{ role: 'system', content: systemPrompt }];
-  
+
   recentMessages.forEach(msg => {
     messages.push({
       role: msg.role === 'claudio' ? 'assistant' : 'user',
@@ -105,16 +113,11 @@ Do NOT copy or repeat your previous assistant responses from the conversation hi
     });
   });
 
-  // Safety check: Ensure the current user input is at the end of the history
   const lastMsg = messages[messages.length - 1];
   const isLastMsgUserCurrent = lastMsg && lastMsg.role === 'user' && lastMsg.content === userInput;
   if (userInput !== null && !isLastMsgUserCurrent) {
-    messages.push({
-      role: 'user',
-      content: userInput
-    });
+    messages.push({ role: 'user', content: userInput });
   } else if (userInput === null) {
-    // Session startup curation: Always append startup prompt
     messages.push({
       role: 'user',
       content: 'The radio is starting up. Introduce yourself and play something that fits the current vibe.'
@@ -122,38 +125,26 @@ Do NOT copy or repeat your previous assistant responses from the conversation hi
   }
 
   try {
-    console.log('[DJ Brain] Initiating API call to Groq...');
     let response = await axios.post(
-      'https://api.groq.com/openai/v1/chat/completions',
+      GROQ_URL,
       {
-        model: process.env.GROQ_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct',
-        messages: messages,
-        tools: tools,
+        model: GROQ_MODEL(),
+        messages,
+        tools,
         tool_choice: 'auto',
         temperature: 0.7
       },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
+      { headers: groqHeaders() }
     );
 
     let messageObj = response.data.choices[0].message;
 
-    // 5. Handle native Tool Calls
     if (messageObj.tool_calls && messageObj.tool_calls.length > 0) {
       const toolCall = messageObj.tool_calls[0];
       if (toolCall.function.name === 'searchWeb') {
         const args = JSON.parse(toolCall.function.arguments);
-        console.log(`[DJ Brain] Model requested tool searchWeb for query: "${args.query}"`);
-        
-        // Execute search with Jina AI Search API
         const searchResults = await searchWeb(args.query);
-        console.log(`[DJ Brain] Tool execution finished. Character length: ${searchResults ? searchResults.length : 0}`);
 
-        // Append tool call and response to messages history
         messages.push(messageObj);
         messages.push({
           role: 'tool',
@@ -162,31 +153,21 @@ Do NOT copy or repeat your previous assistant responses from the conversation hi
           content: searchResults || 'Search timed out or returned no results. Proceed with your static knowledge and persona guardrails.'
         });
 
-        // Resend to Groq to generate the final response incorporating the search findings
-        console.log('[DJ Brain] Resending query to Groq with research findings...');
         response = await axios.post(
-          'https://api.groq.com/openai/v1/chat/completions',
+          GROQ_URL,
           {
-            model: process.env.GROQ_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct',
-            messages: messages,
-            response_format: { type: "json_object" },
+            model: GROQ_MODEL(),
+            messages,
+            response_format: { type: 'json_object' },
             temperature: 0.7
           },
-          {
-            headers: {
-              'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-              'Content-Type': 'application/json'
-            }
-          }
+          { headers: groqHeaders() }
         );
 
         messageObj = response.data.choices[0].message;
       }
     }
 
-    console.log('[DJ Brain] Final decision generated.');
-    
-    // 6. Resilient JSON formatting safety check
     try {
       let cleanContent = messageObj.content.trim();
       if (cleanContent.startsWith('```')) {
@@ -194,8 +175,6 @@ Do NOT copy or repeat your previous assistant responses from the conversation hi
       }
       return JSON.parse(cleanContent);
     } catch (parseErr) {
-      console.warn('[DJ Brain] First call did not return valid JSON. Formatting via fast second call...');
-      
       const formatMessages = [
         {
           role: 'system',
@@ -214,110 +193,81 @@ Return ONLY a JSON object matching this schema:
         {
           role: 'user',
           content: `Please format the following raw DJ response into the JSON schema, keeping the play list empty [] if no new track was requested:
-          
+
 Raw Response: ${messageObj.content}`
         }
       ];
 
       const formatResponse = await axios.post(
-        'https://api.groq.com/openai/v1/chat/completions',
+        GROQ_URL,
         {
-          model: process.env.GROQ_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct',
+          model: GROQ_MODEL(),
           messages: formatMessages,
-          response_format: { type: "json_object" },
+          response_format: { type: 'json_object' },
           temperature: 0.2
         },
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-            'Content-Type': 'application/json'
-          }
-        }
+        { headers: groqHeaders() }
       );
 
       return JSON.parse(formatResponse.data.choices[0].message.content);
     }
   } catch (err) {
-    console.error('Groq AI Error:', err.response?.data || err.message);
-    
-    // Attempt to recover from Groq's native tool-use parsing failures
+    console.error('Groq AI error:', err.response?.data || err.message);
+
     const failedGen = err.response?.data?.error?.failed_generation;
     if (failedGen) {
       try {
-        console.log('[DJ Brain] Attempting to recover from Groq failed_generation error...');
-        let cleanGen = failedGen.trim();
-        
-        // Find where the JSON starts
+        const cleanGen = failedGen.trim();
         const firstBrace = cleanGen.indexOf('{');
         const firstBracket = cleanGen.indexOf('[');
         let jsonStart = -1;
-        
+
         if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
           jsonStart = firstBrace;
         } else if (firstBracket !== -1) {
           jsonStart = firstBracket;
         }
-        
+
         if (jsonStart !== -1) {
-          // Extract from jsonStart to the very end of the string
-          let rawJsonBlock = cleanGen.substring(jsonStart).trim();
-          
+          const rawJsonBlock = cleanGen.substring(jsonStart).trim();
           try {
-            // 1. Try to parse directly (handles complete JSON block with conversational prefix)
             const parsed = JSON.parse(rawJsonBlock);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              console.log('[DJ Brain] Successfully recovered JSON array from failed_generation!');
-              return parsed[0];
-            } else if (parsed) {
-              console.log('[DJ Brain] Successfully recovered JSON object from failed_generation!');
-              return parsed;
-            }
-          } catch (directErr) {
-            // 2. Direct parse failed (likely due to trailing truncation), try to auto-close and recover
-            console.log('[DJ Brain] Direct parsing failed. Attempting JSON auto-closing recovery...');
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+            if (parsed) return parsed;
+          } catch {
             try {
-              const repairedJson = autoCloseJSON(rawJsonBlock);
-              const parsed = JSON.parse(repairedJson);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                console.log('[DJ Brain] Successfully recovered JSON array after auto-closing repairs!');
-                return parsed[0];
-              } else if (parsed) {
-                console.log('[DJ Brain] Successfully recovered JSON object after auto-closing repairs!');
-                return parsed;
-              }
+              const parsed = JSON.parse(autoCloseJSON(rawJsonBlock));
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+              if (parsed) return parsed;
             } catch (repairErr) {
-              console.warn('[DJ Brain] JSON auto-closing repair failed:', repairErr.message);
+              console.warn('JSON repair failed:', repairErr.message);
             }
           }
-        } else {
-          console.warn('[DJ Brain] No JSON start structures found in failed_generation.');
         }
       } catch (recoveryErr) {
-        console.warn('[DJ Brain] Failed to recover JSON from failed_generation:', recoveryErr.message);
+        console.warn('Recovery failed:', recoveryErr.message);
       }
     }
 
-    // Return a safe fallback if AI fails completely
     return {
       say: "Hey there! I'm having a little trouble thinking right now, but let's keep the music moving.",
-      play: ["Blinding Lights - The Weeknd"],
-      intent: "append",
-      reason: "API Fallback",
-      segue: "Back to the hits."
+      play: ['Blinding Lights - The Weeknd'],
+      intent: 'append',
+      reason: 'API Fallback',
+      segue: 'Back to the hits.'
     };
   }
 }
 
-// Helper to repair and auto-close truncated JSON strings
 function autoCloseJSON(str) {
   let clean = str.trim();
   if (clean.length === 0) return clean;
-  
+
   let openBraces = 0;
   let openBrackets = 0;
   let inString = false;
   let escape = false;
-  
+
   for (let i = 0; i < clean.length; i++) {
     const char = clean[i];
     if (escape) {
@@ -339,28 +289,22 @@ function autoCloseJSON(str) {
       else if (char === ']') openBrackets--;
     }
   }
-  
-  if (inString) {
-    clean += '"';
-  }
-  
+
+  if (inString) clean += '"';
+
   clean = clean.trim();
-  if (clean.endsWith(',')) {
-    clean = clean.slice(0, -1).trim();
-  }
-  
+  if (clean.endsWith(',')) clean = clean.slice(0, -1).trim();
+
   while (openBrackets > 0) {
     clean += ']';
     openBrackets--;
   }
-  
   while (openBraces > 0) {
     clean += '}';
     openBraces--;
   }
-  
+
   return clean;
 }
 
 module.exports = { getDJResponse };
-
