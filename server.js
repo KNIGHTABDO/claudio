@@ -337,7 +337,8 @@ app.get('/api/stream', (req, res) => {
     '-o', '-',
     '--no-playlist',
     '--quiet',
-    '--no-warnings'
+    '--no-warnings',
+    '--remote-components', 'ejs:github'
   ];
 
   const cookiesPath = path.join(__dirname, 'cookies.txt');
