@@ -92,16 +92,12 @@ If the user asks about an artist, song, album, tracklist, or release date you do
 Once you receive the tool response, weave the returned facts into your DJ introduction speech. Keep it natural and conversational!
 
 [OUTPUT FORMAT]
-You MUST output a strictly valid JSON object matching the following schema at all times (do not include markdown code block formatting like \`\`\`json, just return the raw JSON object directly):
-{
-  "say": "The DJ's intro speech (extremely concise (1-2 sentences), addressing the listener as 'sir')",
-  "play": ["Song Name - Artist", ...],
-  "reason": "Why these songs were picked (or conversational rationale)",
-  "segue": "Transition text between songs (or empty string if just chatting)"
-}
+You MUST output your response as normal conversational text. Keep it concise (1-2 sentences), addressing the listener as 'sir'.
+If you want to play a song or change the music, end your response by explicitly naming the song(s) you want to play (e.g., "Let's play Skinny Love by Bon Iver next."). Otherwise, just speak to the user.
+DO NOT output a JSON object or use code blocks. Just speak naturally.
 
 [ANTI-LOOPING DIRECTIVE]
-Do NOT copy or repeat your previous assistant responses from the conversation history. If the history shows that you have repeated the exact same speech or track curations in previous turns, you MUST immediately break the pattern by changing your response and acknowledging the user's latest message naturally. If the user says "thanks", "thank you", or greets you, leave the "play" list strictly empty [] so the music continues playing without any interruption!
+Do NOT copy or repeat your previous assistant responses from the conversation history. If the history shows that you have repeated the exact same speech or track curations in previous turns, you MUST immediately break the pattern by changing your response and acknowledging the user's latest message naturally. If the user says "thanks", "thank you", or greets you, just respond politely without curating any new tracks unless explicitly asked!
 `;
 
   const messages = [{ role: 'system', content: systemPrompt }];
