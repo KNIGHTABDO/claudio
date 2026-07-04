@@ -332,14 +332,22 @@ app.get('/api/stream', (req, res) => {
   const YT_DLP_PATH = process.platform === 'win32' ? 'yt-dlp' : '/usr/local/bin/yt-dlp';
   const FFMPEG_PATH = process.platform === 'win32' ? 'ffmpeg' : '/usr/bin/ffmpeg';
 
-  const ytdlp = spawn(YT_DLP_PATH, [
+  const args = [
     '-f', 'bestaudio',
     '-o', '-',
     '--no-playlist',
     '--quiet',
-    '--no-warnings',
-    videoUrl
-  ]);
+    '--no-warnings'
+  ];
+
+  const cookiesPath = path.join(__dirname, 'cookies.txt');
+  if (fs.existsSync(cookiesPath)) {
+    args.push('--cookies', cookiesPath);
+  }
+
+  args.push(videoUrl);
+
+  const ytdlp = spawn(YT_DLP_PATH, args);
 
   const ffmpeg = spawn(FFMPEG_PATH, [
     '-i', 'pipe:0',
