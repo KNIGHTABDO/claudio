@@ -384,9 +384,37 @@ app.get('/api/stream', (req, res) => {
   });
 });
 
+function convertCookiesIfJson() {
+  const cookiesPath = path.join(__dirname, 'cookies.txt');
+  if (!fs.existsSync(cookiesPath)) return;
+  try {
+    const content = fs.readFileSync(cookiesPath, 'utf-8').trim();
+    if (content.startsWith('[')) {
+      console.log('Detecting JSON cookies.txt, converting to Netscape format...');
+      const cookies = JSON.parse(content);
+      let netscapeContent = '# Netscape HTTP Cookie File\n# This file was converted from JSON automatically\n\n';
+      cookies.forEach(c => {
+        const domain = c.domain || '';
+        const includeSubdomains = domain.startsWith('.') ? 'TRUE' : 'FALSE';
+        const pathVal = c.path || '/';
+        const secure = c.secure ? 'TRUE' : 'FALSE';
+        const expiry = c.expirationDate ? Math.round(c.expirationDate) : 0;
+        const name = c.name || '';
+        const value = c.value || '';
+        netscapeContent += `${domain}\t${includeSubdomains}\t${pathVal}\t${secure}\t${expiry}\t${name}\t${value}\n`;
+      });
+      fs.writeFileSync(cookiesPath, netscapeContent, 'utf-8');
+      console.log('Successfully converted cookies.txt to Netscape format!');
+    }
+  } catch (err) {
+    console.error('Failed to parse or convert cookies.txt:', err.message);
+  }
+}
+
 const PORT = process.env.PORT || 8080;
 
 (async () => {
+  convertCookiesIfJson();
   await db.ready;
   await stationCtl.hydrate();
   stationCtl.trimRolling(MIN_UPCOMING);
